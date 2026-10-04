@@ -1,0 +1,3 @@
+-- Migration 013: Seed Data (Superseded by standard auth in 016)
+-- Note: Raw auth.users inserts have been removed in favor of standard Supabase Auth.
+-- To seed sample data, create an admin account in Supabase Authentication first.
