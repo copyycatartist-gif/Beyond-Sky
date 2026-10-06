@@ -59,7 +59,7 @@ export default async function ClientsPage({ searchParams }: ClientsPageProps) {
   }
 
   if (status !== 'all') {
-    supabaseQuery = supabaseQuery.eq('status', status)
+    supabaseQuery = supabaseQuery.eq('status', status as any)
   }
 
   if (branch !== 'all') {
@@ -67,7 +67,7 @@ export default async function ClientsPage({ searchParams }: ClientsPageProps) {
   }
 
   if (tier !== 'all') {
-    supabaseQuery = supabaseQuery.eq('tier', tier)
+    supabaseQuery = supabaseQuery.eq('tier', tier as any)
   }
 
   if (dateFrom) {

@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
       .range(from, to)
 
     if (status) {
-      query = query.eq('status', status)
+      query = query.eq('status', status as any)
     }
     if (branch) {
       query = query.eq('branch', branch)

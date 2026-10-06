@@ -96,7 +96,7 @@ export async function PATCH(request: Request) {
 
     const { data: updatedProfile, error: profileErr } = await adminClient
       .from('users')
-      .update(profileUpdates)
+      .update(profileUpdates as any)
       .eq('id', user.id)
       .select()
       .single()

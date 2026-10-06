@@ -52,6 +52,7 @@ export interface Database {
           description?: string | null
           updated_by?: string | null
         }
+        Relationships: []
       }
       users: {
         Row: {
@@ -79,6 +80,7 @@ export interface Database {
           branch?: string | null
           is_active?: boolean
         }
+        Relationships: []
       }
       clients: {
         Row: {
@@ -167,6 +169,22 @@ export interface Database {
           status?: ClientStatus
           date_registered?: string
           created_by: string
+          notes?: string | null
+          tier?: ClientTier | null
+          is_watchlisted?: boolean | null
+          watchlist_reason?: string | null
+          watchlisted_by?: string | null
+          watchlisted_at?: string | null
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
+          emergency_contact_relationship?: string | null
+          last_activity_at?: string | null
+          is_dormant?: boolean | null
+          data_protection_consent?: boolean | null
+          consent_date?: string | null
+          photo_url?: string | null
+          id_document_url?: string | null
+          profile_completeness?: number | null
         }
         Update: {
           full_name?: string
@@ -205,7 +223,24 @@ export interface Database {
           status?: ClientStatus
           archived_at?: string | null
           archived_by?: string | null
+          notes?: string | null
+          tier?: ClientTier | null
+          is_watchlisted?: boolean | null
+          watchlist_reason?: string | null
+          watchlisted_by?: string | null
+          watchlisted_at?: string | null
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
+          emergency_contact_relationship?: string | null
+          last_activity_at?: string | null
+          is_dormant?: boolean | null
+          data_protection_consent?: boolean | null
+          consent_date?: string | null
+          photo_url?: string | null
+          id_document_url?: string | null
+          profile_completeness?: number | null
         }
+        Relationships: []
       }
       groups: {
         Row: {
@@ -247,6 +282,8 @@ export interface Database {
           description?: string | null
           photo_url?: string | null
           formed_at?: string | null
+          min_member_tenure_days?: number | null
+          require_guarantor_chain?: boolean | null
           created_by: string
         }
         Update: {
@@ -266,6 +303,7 @@ export interface Database {
           archived_by?: string | null
           dissolution_reason?: string | null
         }
+        Relationships: []
       }
       group_members: {
         Row: {
@@ -301,6 +339,22 @@ export interface Database {
           attendance_count?: number | null
           contributions_total?: number | null
         }
+        Relationships: [
+          {
+            foreignKeyName: "group_members_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "group_members_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       group_meetings: {
         Row: {
@@ -328,6 +382,7 @@ export interface Database {
           agenda?: string | null
           notes?: string | null
         }
+        Relationships: []
       }
       meeting_attendance: {
         Row: {
@@ -352,6 +407,7 @@ export interface Database {
           notes?: string | null
           recorded_by?: string | null
         }
+        Relationships: []
       }
       group_waitlist: {
         Row: {
@@ -378,6 +434,22 @@ export interface Database {
           notes?: string | null
           status?: WaitlistStatus
         }
+        Relationships: [
+          {
+            foreignKeyName: "group_waitlist_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "group_waitlist_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       group_documents: {
         Row: {
@@ -405,6 +477,7 @@ export interface Database {
           file_url?: string
           file_size?: number | null
         }
+        Relationships: []
       }
       group_notes: {
         Row: {
@@ -423,6 +496,7 @@ export interface Database {
         Update: {
           content?: string
         }
+        Relationships: []
       }
       loans: {
         Row: {
@@ -508,6 +582,15 @@ export interface Database {
           amount_disbursed_to_client?: number | null
           group_id?: string | null
         }
+        Relationships: [
+          {
+            foreignKeyName: "loans_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       repayment_schedule: {
         Row: {
@@ -535,6 +618,15 @@ export interface Database {
           paid_amount?: number
           status?: InstallmentStatus
         }
+        Relationships: [
+          {
+            foreignKeyName: "repayment_schedule_loan_id_fkey"
+            columns: ["loan_id"]
+            isOneToOne: false
+            referencedRelation: "loans"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       transactions: {
         Row: {
@@ -567,6 +659,7 @@ export interface Database {
           reversal_reason?: string | null
         }
         Update: never
+        Relationships: []
       }
       sms_log: {
         Row: {
@@ -597,6 +690,84 @@ export interface Database {
           status?: SmsStatus
           provider_response?: Json | null
         }
+        Relationships: []
+      }
+      client_notes: {
+        Row: {
+          id: string
+          client_id: string
+          note_text: string
+          created_by: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          client_id: string
+          note_text: string
+          created_by: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          client_id?: string
+          note_text?: string
+          created_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_notes_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_notes_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      client_tasks: {
+        Row: {
+          id: string
+          client_id: string
+          title: string
+          description: string | null
+          due_date: string
+          status: 'pending' | 'completed' | 'cancelled'
+          assigned_to: string | null
+          created_by: string
+          created_at: string
+          completed_at: string | null
+        }
+        Insert: {
+          id?: string
+          client_id: string
+          title: string
+          description?: string | null
+          due_date: string
+          status?: 'pending' | 'completed' | 'cancelled'
+          assigned_to?: string | null
+          created_by: string
+          created_at?: string
+          completed_at?: string | null
+        }
+        Update: {
+          id?: string
+          client_id?: string
+          title?: string
+          description?: string | null
+          due_date?: string
+          status?: 'pending' | 'completed' | 'cancelled'
+          assigned_to?: string | null
+          created_by?: string
+          created_at?: string
+          completed_at?: string | null
+        }
+        Relationships: []
       }
       audit_log: {
         Row: {
@@ -623,7 +794,10 @@ export interface Database {
           ip_address?: string | null
           created_at?: string
         }
-        Update: never
+        Update: {
+          [key: string]: Json | undefined
+        }
+        Relationships: []
       }
     }
     Views: {
@@ -646,6 +820,7 @@ export interface Database {
           total_reversals: number
           outstanding_balance: number
         }
+        Relationships: []
       }
       portfolio_summary: {
         Row: {
@@ -658,6 +833,7 @@ export interface Database {
           total_fees: number
           total_outstanding: number
         }
+        Relationships: []
       }
       par_report: {
         Row: {
@@ -669,6 +845,7 @@ export interface Database {
           par7_pct: number
           par30_pct: number
         }
+        Relationships: []
       }
       overdue_clients: {
         Row: {
@@ -686,6 +863,18 @@ export interface Database {
           max_days_overdue: number
           loan_officer_name: string
         }
+        Relationships: []
+      }
+      weekly_collection_performance: {
+        Row: {
+          week_start: string
+          loans_due: number
+          expected_amount: number
+          collected_amount: number
+          gap: number
+          collection_rate_pct: number
+        }
+        Relationships: []
       }
     }
     Functions: {

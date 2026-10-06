@@ -11,7 +11,7 @@ describe('luhnCheckDigit', () => {
   })
 
   test('computes correct check digit for 000010', () => {
-    expect(luhnCheckDigit('000010')).toBe(5)
+    expect(luhnCheckDigit('000010')).toBe(9)
   })
 
   test('computes correct check digit for 123456', () => {

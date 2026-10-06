@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
 
   const { data, error } = await supabase
     .from('clients')
-    .update({ status: cleanStatus })
+    .update({ status: cleanStatus as any })
     .in('id', ids)
     .select('id, full_name, status')
 

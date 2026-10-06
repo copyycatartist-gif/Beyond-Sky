@@ -87,7 +87,7 @@ export default async function GroupsPage({ searchParams }: GroupsPageProps) {
   }
 
   if (status !== 'all') {
-    groupsQuery = groupsQuery.eq('status', status)
+    groupsQuery = groupsQuery.eq('status', status as any)
   }
 
   if (branch !== 'all') {
@@ -95,7 +95,7 @@ export default async function GroupsPage({ searchParams }: GroupsPageProps) {
   }
 
   if (type !== 'all') {
-    groupsQuery = groupsQuery.eq('group_type', type)
+    groupsQuery = groupsQuery.eq('group_type', type as any)
   }
 
   groupsQuery = groupsQuery.range(from, to)

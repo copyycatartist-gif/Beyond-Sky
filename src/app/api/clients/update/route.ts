@@ -50,7 +50,7 @@ export async function PATCH(request: NextRequest) {
 
   const { data, error } = await supabase
     .from('clients')
-    .update(filteredUpdates)
+    .update(filteredUpdates as any)
     .eq('id', id)
     .select()
     .single()

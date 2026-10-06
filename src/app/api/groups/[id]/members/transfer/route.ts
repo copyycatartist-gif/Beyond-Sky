@@ -46,7 +46,7 @@ export async function POST(
 
   // Load the membership row being transferred
   const { data: membership, error: membershipError } = await supabase
-    .from('group_members' as any)
+    .from('group_members')
     .select('id, group_id, client_id, date_left')
     .eq('id', memberId)
     .maybeSingle()
@@ -96,7 +96,7 @@ export async function POST(
 
   // Guard against an already-active membership in the target group
   const { data: existing } = await supabase
-    .from('group_members' as any)
+    .from('group_members')
     .select('id')
     .eq('group_id', targetGroupId)
     .eq('client_id', membership.client_id)
@@ -114,7 +114,7 @@ export async function POST(
 
   // 1) Close out the membership in the source group
   const { error: leaveError } = await supabase
-    .from('group_members' as any)
+    .from('group_members')
     .update({
       date_left: today,
       removal_reason: reason ?? 'Transferred to another group',
@@ -128,7 +128,7 @@ export async function POST(
 
   // 2) Create the membership in the target group
   const { data: newMembership, error: joinError } = await supabase
-    .from('group_members' as any)
+    .from('group_members')
     .insert({
       group_id: targetGroupId,
       client_id: membership.client_id,
@@ -143,7 +143,7 @@ export async function POST(
   }
 
   // 3) Audit trail
-  await supabase.from('audit_log' as any).insert({
+  await supabase.from('audit_log').insert({
     table_name: 'group_members',
     record_id: membership.client_id,
     action: 'group_member_transfer',

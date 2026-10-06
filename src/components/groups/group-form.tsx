@@ -450,7 +450,7 @@ export function GroupForm() {
           name: form.name.trim(),
           branch: form.branch.trim(),
           area: form.area.trim(),
-          group_type: form.groupType,
+          group_type: form.groupType as any,
           description: form.description.trim() || null,
           meeting_day: form.meetingDay,
           meeting_place: form.meetingPlace.trim(),

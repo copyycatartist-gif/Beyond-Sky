@@ -663,7 +663,7 @@ export function RepaymentForm({
                                 {formatCurrency(loan.total_repayable)}
                               </td>
                               <td className="p-3 text-right font-bold text-gray-700">
-                                {formatCurrency(inst?.expectedAmount || loan.weekly_installment)}
+                                {formatCurrency(inst?.expected_amount || loan.weekly_installment)}
                               </td>
                               <td className="p-3 text-right bg-blue-50/30">
                                 <Input
