@@ -25,7 +25,8 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { formatDate, humanizeStatus } from '@/lib/utils'
 import { GroupMembersManager } from '@/components/groups/group-members-manager'
 import { GroupCollectionMatrix, type GroupMemberLoanSchedule } from '@/components/groups/group-collection-matrix'
-import { GroupStatusToggle, groupStatusBadgeClass } from '@/components/groups/group-status-toggle'
+import { GroupStatusToggle } from '@/components/groups/group-status-toggle'
+import { groupStatusBadgeClass } from '@/lib/group-status'
 import { GroupArchiveButton, GroupPrintButton } from '@/components/groups/group-page-actions'
 import { GroupEditDialog } from '@/components/groups/group-edit-dialog'
 import { GroupSmsBroadcast } from '@/components/groups/group-sms-broadcast'
@@ -98,10 +99,10 @@ export default async function GroupDetailPage({ params }: { params: { id: string
       .select('id, title, document_type, file_url, file_size, created_at')
       .eq('group_id', params.id)
       .order('created_at', { ascending: false }),
-    // Audit history for this group
+    // Audit history for this group (changed_by → auth.users, so resolve names separately)
     supabase
       .from('audit_log' as any)
-      .select('id, action, changed_by, old_values, new_values, changes_diff, created_at, users (full_name, role)')
+      .select('id, action, changed_by, old_values, new_values, changes_diff, created_at')
       .eq('record_id', params.id)
       .order('created_at', { ascending: false })
       .limit(50),
@@ -166,8 +167,12 @@ export default async function GroupDetailPage({ params }: { params: { id: string
     new Set(((notesRaw as any[]) || []).map((n: any) => n.created_by).filter(Boolean))
   )
 
+  const auditActorIds = Array.from(
+    new Set(((auditRaw as any[]) || []).map((a: any) => a.changed_by).filter(Boolean))
+  )
+
   // Wave 3: queries that depend on wave-2 results — fetched in parallel
-  const [memberLoansRes, nameClientsRes, noteAuthorsRes] = await Promise.all([
+  const [memberLoansRes, nameClientsRes, noteAuthorsRes, auditActorsRes] = await Promise.all([
     // Active loans & repayment schedules for all active members
     activeMemberClientIds.length > 0
       ? supabase
@@ -188,11 +193,15 @@ export default async function GroupDetailPage({ params }: { params: { id: string
     noteAuthorIds.length > 0
       ? supabase.from('users').select('id, full_name, role').in('id', noteAuthorIds)
       : Promise.resolve({ data: [] as any[] }),
+    auditActorIds.length > 0
+      ? supabase.from('users').select('id, full_name, role').in('id', auditActorIds)
+      : Promise.resolve({ data: [] as any[] }),
   ])
 
   const memberLoans = memberLoansRes.data
   const nameClients = nameClientsRes.data
   const noteAuthors = noteAuthorsRes.data
+  const auditActors = auditActorsRes.data
 
   // Wave 4: ledger balances (needs loan ids from wave 3)
   const loanIds = ((memberLoans as any[]) || []).map((l: any) => l.id)
@@ -314,6 +323,10 @@ export default async function GroupDetailPage({ params }: { params: { id: string
   }))
 
   // Audit history for this group
+  const auditActorMap: Record<string, { full_name: string; role: string }> = {}
+  ;((auditActors as any[]) || []).forEach((u: any) => {
+    auditActorMap[u.id] = { full_name: u.full_name, role: u.role }
+  })
   const auditEntries = ((auditRaw as any[]) || []).map((a: any) => ({
     id: a.id,
     action: a.action,
@@ -323,7 +336,8 @@ export default async function GroupDetailPage({ params }: { params: { id: string
     changes_diff: a.changes_diff ?? null,
     created_at: a.created_at,
     user: (() => {
-      const name = publicStaffName(a.users, profile?.role)
+      const actor = a.changed_by ? auditActorMap[a.changed_by] : null
+      const name = publicStaffName(actor, profile?.role)
       return name ? { full_name: name } : null
     })(),
   }))
