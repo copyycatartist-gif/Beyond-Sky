@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getCurrentUserProfile } from '@/lib/supabase/auth'
 import { rateLimit, getRateLimitHeaders } from '@/lib/rate-limit'
 import { sanitizeInput, sanitizeObject } from '@/lib/sanitize'
+import { canSeeSuperAdmin } from '@/lib/roles'
 
 /**
  * GET /api/groups/[id]/notes
@@ -25,7 +26,7 @@ export async function GET(
       .select(
         `
         id, group_id, content, created_by, created_at,
-        author:users (full_name)
+        author:users (full_name, role)
         `
       )
       .eq('group_id', params.id)
@@ -35,7 +36,14 @@ export async function GET(
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    return NextResponse.json({ notes: (data || []) as any[] })
+    const notes = ((data || []) as any[]).map((note) => {
+      if (!canSeeSuperAdmin(profile.role) && note?.author?.role === 'accountant_admin') {
+        return { ...note, author: { full_name: 'Staff' } }
+      }
+      return note
+    })
+
+    return NextResponse.json({ notes })
   } catch (err: any) {
     console.error('[GET /api/groups/[id]/notes] error:', err)
     return NextResponse.json({ error: err?.message || 'Internal server error' }, { status: 500 })

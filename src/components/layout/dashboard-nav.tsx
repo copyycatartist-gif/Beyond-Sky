@@ -89,7 +89,7 @@ const NAV_ITEMS: NavItem[] = [
     href: '/users',
     label: 'Staff & Role Admin',
     icon: ShieldCheck,
-    roles: ['accountant_admin'],
+    roles: ['accountant_admin', 'manager'],
   },
   {
     href: '/settings',

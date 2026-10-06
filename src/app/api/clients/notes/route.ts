@@ -1,5 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { canSeeSuperAdmin } from '@/lib/roles'
+
+function hideSuperAdminAuthors(notes: any, viewerRole: string | null | undefined) {
+  if (canSeeSuperAdmin(viewerRole) || !Array.isArray(notes)) return notes
+  return notes.map((note) => {
+    if (note?.users?.role === 'accountant_admin') {
+      return { ...note, users: { full_name: 'Staff' } }
+    }
+    return note
+  })
+}
 
 export async function POST(request: NextRequest) {
   const supabase = await createClient()
@@ -15,6 +26,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'clientId and noteText are required' }, { status: 400 })
   }
 
+  const { data: viewer } = await supabase.from('users').select('role').eq('id', user.id).single()
+
   const { data, error } = await supabase
     .from('client_notes')
     .insert({
@@ -22,14 +35,15 @@ export async function POST(request: NextRequest) {
       note_text: noteText.trim(),
       created_by: user.id,
     })
-    .select('*, users:created_by(full_name)')
+    .select('*, users:created_by(full_name, role)')
     .single()
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  return NextResponse.json(data)
+  const [visible] = hideSuperAdminAuthors([data], viewer?.role)
+  return NextResponse.json(visible)
 }
 
 export async function GET(request: NextRequest) {
@@ -45,9 +59,11 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'clientId is required' }, { status: 400 })
   }
 
+  const { data: viewer } = await supabase.from('users').select('role').eq('id', user.id).single()
+
   const { data, error } = await supabase
     .from('client_notes')
-    .select('*, users:created_by(full_name)')
+    .select('*, users:created_by(full_name, role)')
     .eq('client_id', clientId)
     .order('created_at', { ascending: false })
 
@@ -55,5 +71,5 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  return NextResponse.json(data)
+  return NextResponse.json(hideSuperAdminAuthors(data, viewer?.role))
 }

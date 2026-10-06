@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
-import type { UserRole } from '@/lib/supabase/database.types'
+import { assignableStaffRoles, canAdministerStaff, SUPER_ADMIN_ROLE } from '@/lib/roles'
 
 export async function PATCH(
   request: Request,
@@ -21,8 +21,8 @@ export async function PATCH(
       .eq('id', currentUser.id)
       .single()
 
-    if (currentProfile?.role !== 'accountant_admin') {
-      return NextResponse.json({ error: 'Forbidden: Only accountant_admin can modify staff accounts' }, { status: 403 })
+    if (!canAdministerStaff(currentProfile?.role)) {
+      return NextResponse.json({ error: 'Forbidden: Only a super admin or manager can modify staff accounts' }, { status: 403 })
     }
 
     const targetUserId = params.id
@@ -31,10 +31,23 @@ export async function PATCH(
 
     const adminClient = createAdminClient()
 
-    // Prevent admin from accidentally decommissioning their own account
+    const { data: targetProfile } = await adminClient
+      .from('users')
+      .select('role')
+      .eq('id', targetUserId)
+      .maybeSingle()
+
+    if (
+      !targetProfile ||
+      (targetProfile.role === SUPER_ADMIN_ROLE && currentProfile?.role !== SUPER_ADMIN_ROLE)
+    ) {
+      return NextResponse.json({ error: 'Staff account not found' }, { status: 404 })
+    }
+
+    // Prevent staff administrators from decommissioning their own account
     if (targetUserId === currentUser.id && is_active === false) {
       return NextResponse.json(
-        { error: 'Cannot decommission your own active super-admin account' },
+        { error: 'Cannot decommission your own account' },
         { status: 400 }
       )
     }
@@ -45,7 +58,7 @@ export async function PATCH(
     }
 
     if (role !== undefined) {
-      const validRoles: UserRole[] = ['loan_officer', 'supervisor', 'manager', 'accountant_admin']
+      const validRoles = assignableStaffRoles(currentProfile?.role)
       if (!validRoles.includes(role)) {
         return NextResponse.json({ error: `Invalid role: ${role}` }, { status: 400 })
       }
@@ -145,8 +158,8 @@ export async function DELETE(
       .eq('id', currentUser.id)
       .single()
 
-    if (currentProfile?.role !== 'accountant_admin') {
-      return NextResponse.json({ error: 'Forbidden: Admin access required' }, { status: 403 })
+    if (!canAdministerStaff(currentProfile?.role)) {
+      return NextResponse.json({ error: 'Forbidden: Only a super admin or manager can remove staff accounts' }, { status: 403 })
     }
 
     const targetUserId = params.id
@@ -155,6 +168,19 @@ export async function DELETE(
     }
 
     const adminClient = createAdminClient()
+
+    const { data: targetProfile } = await adminClient
+      .from('users')
+      .select('role')
+      .eq('id', targetUserId)
+      .maybeSingle()
+
+    if (
+      !targetProfile ||
+      (targetProfile.role === SUPER_ADMIN_ROLE && currentProfile?.role !== SUPER_ADMIN_ROLE)
+    ) {
+      return NextResponse.json({ error: 'Staff account not found' }, { status: 404 })
+    }
 
     // 1. Decommission or delete user from Auth
     const { error: authErr } = await adminClient.auth.admin.deleteUser(targetUserId)

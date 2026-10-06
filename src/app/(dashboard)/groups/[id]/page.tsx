@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentUserProfile } from '@/lib/supabase/auth'
+import { publicStaffName } from '@/lib/roles'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import {
@@ -60,7 +61,7 @@ export default async function GroupDetailPage({ params }: { params: { id: string
   const [creatorRes, membersRes, meetingsRes, notesRes, waitlistRes, documentsRes, auditRes, allClientsRes] = await Promise.all([
     // Creator profile
     g.created_by
-      ? supabase.from('users').select('full_name').eq('id', g.created_by).maybeSingle()
+      ? supabase.from('users').select('full_name, role').eq('id', g.created_by).maybeSingle()
       : Promise.resolve({ data: null as any }),
     // Current group members (active + former)
     supabase
@@ -100,7 +101,7 @@ export default async function GroupDetailPage({ params }: { params: { id: string
     // Audit history for this group
     supabase
       .from('audit_log' as any)
-      .select('id, action, changed_by, old_values, new_values, changes_diff, created_at, users (full_name)')
+      .select('id, action, changed_by, old_values, new_values, changes_diff, created_at, users (full_name, role)')
       .eq('record_id', params.id)
       .order('created_at', { ascending: false })
       .limit(50),
@@ -185,7 +186,7 @@ export default async function GroupDetailPage({ params }: { params: { id: string
       ? supabase.from('clients').select('id, full_name').in('id', allReferencedClientIds)
       : Promise.resolve({ data: [] as any[] }),
     noteAuthorIds.length > 0
-      ? supabase.from('users').select('id, full_name').in('id', noteAuthorIds)
+      ? supabase.from('users').select('id, full_name, role').in('id', noteAuthorIds)
       : Promise.resolve({ data: [] as any[] }),
   ])
 
@@ -270,7 +271,8 @@ export default async function GroupDetailPage({ params }: { params: { id: string
   // Notes + author names
   const authorMap: Record<string, string> = {}
   ;((noteAuthors as any[]) || []).forEach((u: any) => {
-    authorMap[u.id] = u.full_name
+    const name = publicStaffName(u, profile?.role)
+    if (name) authorMap[u.id] = name
   })
   const notes = ((notesRaw as any[]) || []).map((n: any) => ({
     id: n.id,
@@ -320,7 +322,10 @@ export default async function GroupDetailPage({ params }: { params: { id: string
     new_values: a.new_values,
     changes_diff: a.changes_diff ?? null,
     created_at: a.created_at,
-    user: a.users ?? null,
+    user: (() => {
+      const name = publicStaffName(a.users, profile?.role)
+      return name ? { full_name: name } : null
+    })(),
   }))
 
   // Leader record
@@ -415,7 +420,7 @@ export default async function GroupDetailPage({ params }: { params: { id: string
                     Leader: {leader.full_name}
                   </span>
                 )}
-                <span>Created {formatDate(g.created_at)} by {creator?.full_name ?? 'Staff'}</span>
+                <span>Created {formatDate(g.created_at)} by {publicStaffName(creator, profile?.role) ?? 'Staff'}</span>
               </div>
               {g.description && (
                 <p className="text-sm text-gray-600 mt-2 max-w-3xl">{g.description}</p>

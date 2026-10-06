@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
-import type { UserRole } from '@/lib/supabase/database.types'
+import { assignableStaffRoles, canAdministerStaff, visibleStaff } from '@/lib/roles'
 
 export async function GET() {
   try {
@@ -18,8 +18,8 @@ export async function GET() {
       .eq('id', user.id)
       .single()
 
-    if (profile?.role !== 'accountant_admin') {
-      return NextResponse.json({ error: 'Forbidden: Admin access required' }, { status: 403 })
+    if (!canAdministerStaff(profile?.role)) {
+      return NextResponse.json({ error: 'Forbidden: Staff administration access required' }, { status: 403 })
     }
 
     const adminClient = createAdminClient()
@@ -30,7 +30,7 @@ export async function GET() {
 
     if (error) throw error
 
-    return NextResponse.json({ users: users || [] })
+    return NextResponse.json({ users: visibleStaff(users || [], profile?.role) })
   } catch (err: any) {
     console.error('Error fetching users:', err)
     return NextResponse.json({ error: err.message || 'Failed to fetch users' }, { status: 500 })
@@ -52,8 +52,8 @@ export async function POST(request: Request) {
       .eq('id', currentUser.id)
       .single()
 
-    if (currentProfile?.role !== 'accountant_admin') {
-      return NextResponse.json({ error: 'Forbidden: Only accountant_admin can create new staff' }, { status: 403 })
+    if (!canAdministerStaff(currentProfile?.role)) {
+      return NextResponse.json({ error: 'Forbidden: Only a super admin or manager can create staff' }, { status: 403 })
     }
 
     const body = await request.json()
@@ -67,7 +67,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Password must be at least 6 characters' }, { status: 400 })
     }
 
-    const validRoles: UserRole[] = ['loan_officer', 'supervisor', 'manager', 'accountant_admin']
+    const validRoles = assignableStaffRoles(currentProfile?.role)
     if (!validRoles.includes(role)) {
       return NextResponse.json({ error: `Invalid role. Must be one of: ${validRoles.join(', ')}` }, { status: 400 })
     }

@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentUserProfile } from '@/lib/supabase/auth'
+import { canSeeSuperAdmin } from '@/lib/roles'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import {
@@ -72,7 +73,7 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
       .limit(5),
     supabase
       .from('client_notes')
-      .select('*, users:created_by(full_name)')
+      .select('*, users:created_by(full_name, role)')
       .eq('client_id', params.id)
       .order('created_at', { ascending: false })
       .limit(10),
@@ -101,7 +102,12 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
   const loans = (loansRes.data as any[]) || []
   const recentTransactions = transactionsRes.data as any[] | null
   const smsHistory = smsRes.data as any[] | null
-  const notes = notesRes.data as any[] | null
+  const notes = ((notesRes.data as any[]) || []).map((note) => {
+    if (!canSeeSuperAdmin(profile?.role) && note?.users?.role === 'accountant_admin') {
+      return { ...note, users: { full_name: 'Staff' } }
+    }
+    return note
+  })
   const tasks = tasksRes.data as any[] | null
   const auditEntries = auditRes.data as any[] | null
 

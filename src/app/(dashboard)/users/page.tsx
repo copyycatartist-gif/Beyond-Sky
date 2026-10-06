@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { UsersManager } from '@/components/users/users-manager'
+import { canAdministerStaff, visibleStaff } from '@/lib/roles'
 
 export const dynamic = 'force-dynamic'
 
@@ -19,11 +20,11 @@ export default async function UsersPage() {
     .eq('id', user.id)
     .single()
 
-  if (currentProfile?.role !== 'accountant_admin') {
+  if (!currentProfile || !canAdministerStaff(currentProfile.role)) {
     redirect('/dashboard')
   }
 
-  // Fetch all staff users
+  // Fetch staff. Super admin accounts stay hidden from managers.
   const { data: users } = await supabase
     .from('users')
     .select('*')
@@ -39,8 +40,9 @@ export default async function UsersPage() {
       </div>
 
       <UsersManager
-        initialUsers={users || []}
+        initialUsers={visibleStaff(users || [], currentProfile.role)}
         currentUserId={user.id}
+        currentUserRole={currentProfile.role}
       />
     </div>
   )

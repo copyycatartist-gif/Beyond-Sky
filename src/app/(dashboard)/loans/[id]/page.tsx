@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { publicStaffName } from '@/lib/roles'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, User, Calendar, CreditCard, ShieldCheck, FileText, AlertCircle, AlertTriangle, Check, History } from 'lucide-react'
@@ -40,10 +41,10 @@ export default async function LoanDetailPage({ params }: { params: { id: string 
   const [profileRes, submittedByRes, approvedByRes, prevLoanRes, scheduleRes, transRes, oldSummaryRes, currentSummaryRes] = await Promise.all([
     supabase.from('users').select('role').eq('id', user?.id || '').single(),
     loan.submitted_by
-      ? supabase.from('users').select('full_name').eq('id', loan.submitted_by).maybeSingle()
+      ? supabase.from('users').select('full_name, role').eq('id', loan.submitted_by).maybeSingle()
       : Promise.resolve({ data: null as any }),
     loan.approved_by
-      ? supabase.from('users').select('full_name').eq('id', loan.approved_by).maybeSingle()
+      ? supabase.from('users').select('full_name, role').eq('id', loan.approved_by).maybeSingle()
       : Promise.resolve({ data: null as any }),
     loan.previous_loan_id
       ? supabase.from('loans').select('id, loan_number, principal, status').eq('id', loan.previous_loan_id).maybeSingle()
@@ -76,10 +77,13 @@ export default async function LoanDetailPage({ params }: { params: { id: string 
   const profile = profileRes.data as any
   const userRole: string = profile?.role ?? 'loan_officer'
 
+  const submittedByName = publicStaffName(submittedByRes.data, userRole)
+  const approvedByName = publicStaffName(approvedByRes.data, userRole)
+
   const loanWithRelations = {
     ...loan,
-    submitted_by_user: submittedByRes.data,
-    approved_by_user: approvedByRes.data,
+    submitted_by_user: submittedByName ? { full_name: submittedByName } : null,
+    approved_by_user: approvedByName ? { full_name: approvedByName } : null,
     previous_loan: prevLoanRes.data,
   }
 
@@ -140,14 +144,14 @@ export default async function LoanDetailPage({ params }: { params: { id: string 
     {
       label: 'Submitted',
       date: loan.created_at,
-      actor: submittedByRes.data?.full_name ?? 'Loan Officer',
+      actor: submittedByName ?? 'Loan Officer',
       done: true,
       bad: false,
     },
     {
       label: loan.status === 'rejected' ? 'Rejected' : 'Approved',
       date: loan.approval_date,
-      actor: approvedByRes.data?.full_name ?? 'Manager',
+      actor: approvedByName ?? 'Manager',
       done: !!loan.approval_date,
       bad: loan.status === 'rejected',
     },

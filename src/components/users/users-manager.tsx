@@ -30,19 +30,24 @@ import {
   Save,
 } from 'lucide-react'
 import type { Database, UserRole } from '@/lib/supabase/database.types'
+import { canSeeSuperAdmin, visibleStaff } from '@/lib/roles'
 
 type UserProfile = Database['public']['Tables']['users']['Row']
 
 interface UsersManagerProps {
   initialUsers: UserProfile[]
   currentUserId: string
+  currentUserRole: UserRole
 }
 
-export function UsersManager({ initialUsers, currentUserId }: UsersManagerProps) {
+export function UsersManager({ initialUsers, currentUserId, currentUserRole }: UsersManagerProps) {
   const router = useRouter()
   const { toast } = useToast()
 
-  const [usersList, setUsersList] = useState<UserProfile[]>(initialUsers)
+  const viewerIsSuperAdmin = canSeeSuperAdmin(currentUserRole)
+  const [usersList, setUsersList] = useState<UserProfile[]>(() =>
+    visibleStaff(initialUsers, currentUserRole)
+  )
   const [searchQuery, setSearchQuery] = useState('')
   const [roleFilter, setRoleFilter] = useState<string>('all')
   const [statusFilter, setStatusFilter] = useState<string>('all')
@@ -80,7 +85,7 @@ export function UsersManager({ initialUsers, currentUserId }: UsersManagerProps)
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null)
 
   // Filter users
-  const filteredUsers = usersList.filter((u) => {
+  const filteredUsers = visibleStaff(usersList, currentUserRole).filter((u) => {
     const matchesSearch =
       u.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       u.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -173,7 +178,7 @@ export function UsersManager({ initialUsers, currentUserId }: UsersManagerProps)
     if (targetUser.id === currentUserId) {
       toast({
         title: 'Action Denied',
-        description: 'You cannot decommission your own super-admin account',
+        description: 'You cannot decommission your own account',
         variant: 'destructive',
       })
       return
@@ -346,7 +351,7 @@ export function UsersManager({ initialUsers, currentUserId }: UsersManagerProps)
                 className="h-8 text-xs border rounded-md px-2 bg-white"
               >
                 <option value="all">All Roles</option>
-                <option value="accountant_admin">Super Admin</option>
+                {viewerIsSuperAdmin && <option value="accountant_admin">Super Admin</option>}
                 <option value="manager">Manager</option>
                 <option value="supervisor">Supervisor</option>
                 <option value="loan_officer">Loan Officer</option>
@@ -586,7 +591,7 @@ export function UsersManager({ initialUsers, currentUserId }: UsersManagerProps)
                   <option value="loan_officer">Loan Officer</option>
                   <option value="supervisor">Supervisor</option>
                   <option value="manager">Branch Manager</option>
-                  <option value="accountant_admin">Super Admin</option>
+                  {viewerIsSuperAdmin && <option value="accountant_admin">Super Admin</option>}
                 </select>
               </div>
 
@@ -672,7 +677,9 @@ export function UsersManager({ initialUsers, currentUserId }: UsersManagerProps)
                     id: 'accountant_admin',
                     title: 'Super Admin (Accountant)',
                   },
-                ].map((r) => (
+                ]
+                  .filter((r) => viewerIsSuperAdmin || r.id !== 'accountant_admin')
+                  .map((r) => (
                   <label
                     key={r.id}
                     className={`flex items-start gap-3 p-2.5 rounded-lg border cursor-pointer transition-all ${
