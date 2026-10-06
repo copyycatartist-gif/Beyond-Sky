@@ -119,16 +119,27 @@ export async function POST(request: Request) {
           .eq('loan_id', loan.id)
           .single()
 
-        const remainingBal = Math.max(0, summary?.outstanding_balance || 0)
+        const remainingBal = Math.max(0, Number(summary?.outstanding_balance) || 0)
+        const loanFullyPaid = remainingBal <= 0.009
 
-        // 4. Send Confirmation SMS
+        // 4. Send Confirmation SMS (+ payoff SMS when cleared)
         if (loan.clients?.phone_number) {
-          sendTemplatedSms(
-            loan.clients.phone_number,
-            'confirmation',
-            [loan.clients.full_name, amt, remainingBal, loan.loan_number, formatDate(txDate)],
-            { clientId: loan.client_id, loanId: loan.id }
-          ).catch((smsErr) => console.error('[Batch Repayment SMS Failed]', smsErr))
+          ;(async () => {
+            await sendTemplatedSms(
+              loan.clients.phone_number,
+              'confirmation',
+              [loan.clients.full_name, amt, remainingBal, loan.loan_number, formatDate(txDate)],
+              { clientId: loan.client_id, loanId: loan.id }
+            )
+            if (loanFullyPaid) {
+              await sendTemplatedSms(
+                loan.clients.phone_number,
+                'loan_closed',
+                [loan.clients.full_name, loan.loan_number, amt],
+                { clientId: loan.client_id, loanId: loan.id }
+              )
+            }
+          })().catch((smsErr) => console.error('[Batch Repayment SMS Failed]', smsErr))
         }
 
         totalAmount += amt

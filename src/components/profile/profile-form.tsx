@@ -12,12 +12,8 @@ import { formatDate } from '@/lib/utils'
 import {
   User,
   KeyRound,
-  Building2,
-  Mail,
   Loader2,
   Save,
-  CheckCircle2,
-  Lock,
 } from 'lucide-react'
 import type { Database } from '@/lib/supabase/database.types'
 
@@ -29,7 +25,6 @@ export function ProfileForm({ initialUser }: { initialUser: UserProfile }) {
 
   const [fullName, setFullName] = useState(initialUser.full_name || '')
   const [email, setEmail] = useState(initialUser.email || '')
-  const [branch, setBranch] = useState(initialUser.branch || 'Makola Branch')
 
   // Password fields
   const [newPassword, setNewPassword] = useState('')
@@ -69,7 +64,6 @@ export function ProfileForm({ initialUser }: { initialUser: UserProfile }) {
         body: JSON.stringify({
           fullName,
           email,
-          branch,
           newPassword: newPassword || undefined,
         }),
       })
@@ -106,7 +100,7 @@ export function ProfileForm({ initialUser }: { initialUser: UserProfile }) {
       badgeClass: 'bg-purple-100 text-purple-800 border-purple-200',
     },
     manager: {
-      label: 'Branch Manager',
+      label: 'Manager',
       badgeClass: 'bg-blue-100 text-blue-800 border-blue-200',
     },
     supervisor: {
@@ -136,7 +130,7 @@ export function ProfileForm({ initialUser }: { initialUser: UserProfile }) {
                 Personal & Account Profile
               </CardTitle>
               <CardDescription className="text-xs">
-                Manage your staff identity, assigned operating branch, and login email
+                Manage your staff identity and login email
               </CardDescription>
             </div>
             <span
@@ -169,16 +163,6 @@ export function ProfileForm({ initialUser }: { initialUser: UserProfile }) {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 placeholder="admin@beyondsky.com"
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="branch">Assigned Branch / Station</Label>
-              <Input
-                id="branch"
-                value={branch}
-                onChange={(e) => setBranch(e.target.value)}
-                placeholder="e.g. Makola Branch, Kaneshie Branch, Head Office"
               />
             </div>
 

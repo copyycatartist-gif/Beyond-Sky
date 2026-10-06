@@ -133,9 +133,18 @@ export async function POST(request: Request) {
     // (already committed) disbursement.
     try {
       if (loan.clients?.phone_number) {
-        const firstDueDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
-          .toISOString()
-          .split('T')[0]
+        const { data: firstInstallment } = await adminClient
+          .from('repayment_schedule')
+          .select('due_date')
+          .eq('loan_id', loanId)
+          .order('installment_number', { ascending: true })
+          .limit(1)
+          .maybeSingle()
+
+        const firstDueDate =
+          firstInstallment?.due_date ||
+          new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+
         await sendTemplatedSms(
           loan.clients.phone_number,
           'disbursement',

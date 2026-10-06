@@ -11,12 +11,12 @@ import { formatCurrency, formatDate, clientStatusBadgeClass } from '@/lib/utils'
 import {
   Search, UserPlus, Eye, Phone, MapPin, Briefcase, ChevronUp, ChevronDown,
   ChevronsUpDown, ChevronLeft, ChevronRight, Download, Upload, X,
-  MessageSquare, ExternalLink, Layers, Grid, List, ShieldAlert, Clock,
+  MessageSquare, ExternalLink, Grid, List, ShieldAlert, Clock,
   AlertTriangle, CheckCircle2, Copy, MoreHorizontal, Star, Crown,
   ArrowUpRight, ArrowDownRight, Filter, RefreshCw, Users, Zap,
   EyeOff, Eye as EyeIcon, Volume2, Calendar, TrendingUp, BarChart3,
   Columns3, Bookmark, BookmarkCheck, Printer, WifiOff, Wifi, Save,
-  FileText, History, ChevronsLeft, ChevronsRight, Settings2, Trash2,
+  FileText, History, ChevronsLeft, ChevronsRight, Trash2,
   Users2, CircleDot, ArrowRight
 } from 'lucide-react'
 
@@ -76,7 +76,6 @@ interface ClientListProps {
 }
 
 type ViewMode = 'table' | 'cards'
-type Density = 'compact' | 'comfortable'
 
 const TIER_CONFIG = {
   bronze: { icon: ShieldAlert, color: 'text-amber-700 bg-amber-50 border-amber-200', label: 'Bronze' },
@@ -189,9 +188,7 @@ const STORAGE_KEYS = {
   columns: 'bs_client_cols',
   savedFilters: 'bs_saved_filters',
   recentSearches: 'bs_recent_searches',
-  density: 'bs_density',
   viewMode: 'bs_view_mode',
-  zebra: 'bs_zebra',
 }
 
 export function ClientList({
@@ -204,14 +201,11 @@ export function ClientList({
 
   const [searchInput, setSearchInput] = useState(query)
   const [viewMode, setViewMode] = useState<ViewMode>('table')
-  const [density, setDensity] = useState<Density>('comfortable')
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [expandedRow, setExpandedRow] = useState<string | null>(null)
   const [maskedPII, setMaskedPII] = useState(true)
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [showFilters, setShowFilters] = useState(false)
-  const [focusedRow, setFocusedRow] = useState(-1)
-  const [zebraStripes, setZebraStripes] = useState(false)
   const [showColumnPicker, setShowColumnPicker] = useState(false)
   const [visibleColumns, setVisibleColumns] = useState<Set<ColumnKey>>(
     new Set(ALL_COLUMNS.map(c => c.key))
@@ -226,7 +220,6 @@ export function ClientList({
   const [swipedCard, setSwipedCard] = useState<string | null>(null)
 
   const debounceRef = useRef<NodeJS.Timeout | null>(null)
-  const tableRef = useRef<HTMLDivElement>(null)
   const searchRef = useRef<HTMLInputElement>(null)
 
   const totalPages = Math.ceil(totalCount / pageSize)
@@ -239,12 +232,8 @@ export function ClientList({
     try {
       const cols = localStorage.getItem(STORAGE_KEYS.columns)
       if (cols) setVisibleColumns(new Set(JSON.parse(cols)))
-      const d = localStorage.getItem(STORAGE_KEYS.density)
-      if (d) setDensity(d as Density)
       const vm = localStorage.getItem(STORAGE_KEYS.viewMode)
       if (vm) setViewMode(vm as ViewMode)
-      const z = localStorage.getItem(STORAGE_KEYS.zebra)
-      if (z) setZebraStripes(z === 'true')
       const sf = localStorage.getItem(STORAGE_KEYS.savedFilters)
       if (sf) setSavedFilters(JSON.parse(sf))
       const rs = localStorage.getItem(STORAGE_KEYS.recentSearches)
@@ -269,16 +258,8 @@ export function ClientList({
   }, [visibleColumns])
 
   useEffect(() => {
-    try { localStorage.setItem(STORAGE_KEYS.density, density) } catch {}
-  }, [density])
-
-  useEffect(() => {
     try { localStorage.setItem(STORAGE_KEYS.viewMode, viewMode) } catch {}
   }, [viewMode])
-
-  useEffect(() => {
-    try { localStorage.setItem(STORAGE_KEYS.zebra, String(zebraStripes)) } catch {}
-  }, [zebraStripes])
 
   const updateURL = useCallback((params: Record<string, string>) => {
     const current = new URLSearchParams(searchParams.toString())
@@ -427,29 +408,6 @@ export function ClientList({
     try { localStorage.setItem(STORAGE_KEYS.savedFilters, JSON.stringify(next)) } catch {}
   }
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'ArrowDown') {
-      e.preventDefault()
-      setFocusedRow(prev => Math.min(prev + 1, clients.length - 1))
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault()
-      setFocusedRow(prev => Math.max(prev - 1, 0))
-    } else if (e.key === 'Enter' && focusedRow >= 0) {
-      router.push(`/clients/${clients[focusedRow].id}`)
-    } else if (e.key === 'Escape') {
-      setExpandedRow(null)
-      setSelectedIds(new Set())
-      setShowColumnPicker(false)
-      setShowSearchHistory(false)
-    } else if (e.key === '/' && !e.ctrlKey && !e.metaKey) {
-      const target = e.target as HTMLElement
-      if (target.tagName !== 'INPUT' && target.tagName !== 'TEXTAREA') {
-        e.preventDefault()
-        searchRef.current?.focus()
-      }
-    }
-  }
-
   const SortIcon = ({ column }: { column: string }) => {
     if (sort !== column) return <ChevronsUpDown className="h-3 w-3 text-gray-300 ml-1 inline" />
     return order === 'asc'
@@ -457,7 +415,7 @@ export function ClientList({
       : <ChevronDown className="h-3 w-3 text-blue-600 ml-1 inline" />
   }
 
-  const rowPadding = density === 'compact' ? 'py-1.5' : 'py-3'
+  const rowPadding = 'py-3'
 
   const trendData = useMemo(() => registrationTrend.map(t => t.count), [registrationTrend])
   const trendTotal = useMemo(() => trendData.reduce((a, b) => a + b, 0), [trendData])
@@ -471,7 +429,7 @@ export function ClientList({
   const colSpan = 2 + ALL_COLUMNS.filter(c => visibleColumns.has(c.key)).length
 
   return (
-    <div className="space-y-4" onKeyDown={handleKeyDown} tabIndex={-1} ref={tableRef}>
+    <div className="space-y-4">
       {/* Offline indicator */}
       {!isOnline && (
         <div className="flex items-center gap-2 px-4 py-2 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
@@ -549,7 +507,7 @@ export function ClientList({
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                   <Input
                     ref={searchRef}
-                    placeholder="Search name, A/C #, phone, market... ( / )"
+                    placeholder="Search name, A/C #, phone, market..."
                     value={searchInput}
                     onChange={(e) => handleSearch(e.target.value)}
                     onFocus={() => recentSearches.length > 0 && setShowSearchHistory(true)}
@@ -667,28 +625,6 @@ export function ClientList({
                   </div>
                 )}
 
-                {/* Density toggle */}
-                <button
-                  onClick={() => setDensity(d => d === 'compact' ? 'comfortable' : 'compact')}
-                  className="hidden sm:flex p-2 border border-gray-200 rounded-md text-gray-400 hover:text-gray-600"
-                  title={`Switch to ${density === 'compact' ? 'comfortable' : 'compact'} density`}
-                  aria-label="Toggle density"
-                >
-                  <Layers className="h-4 w-4" />
-                </button>
-
-                {/* Zebra stripes toggle */}
-                {viewMode === 'table' && (
-                  <button
-                    onClick={() => setZebraStripes(!zebraStripes)}
-                    className={`hidden sm:flex p-2 border rounded-md transition-colors ${zebraStripes ? 'border-blue-300 bg-blue-50 text-blue-600' : 'border-gray-200 text-gray-400 hover:text-gray-600'}`}
-                    title="Toggle zebra striping"
-                    aria-label="Toggle zebra stripes"
-                  >
-                    <Settings2 className="h-4 w-4" />
-                  </button>
-                )}
-
                 {/* PII mask toggle */}
                 <button
                   onClick={() => setMaskedPII(!maskedPII)}
@@ -752,16 +688,6 @@ export function ClientList({
                     <option value="active">Active ({statusCounts.active})</option>
                     <option value="inactive">Inactive ({statusCounts.inactive})</option>
                     <option value="defaulted">Defaulted ({statusCounts.defaulted})</option>
-                  </select>
-
-                  <select
-                    value={branch}
-                    onChange={(e) => updateURL({ branch: e.target.value })}
-                    className="h-9 rounded-md border border-gray-300 bg-white px-3 text-sm"
-                    aria-label="Filter by branch"
-                  >
-                    <option value="all">All Branches</option>
-                    {branches.map(b => <option key={b} value={b}>{b}</option>)}
                   </select>
 
                   <select
@@ -869,13 +795,10 @@ export function ClientList({
           </div>
 
           {/* Results count announcement */}
-          <div className="text-xs text-gray-500 flex items-center justify-between no-print" aria-live="polite">
+          <div className="text-xs text-gray-500 no-print" aria-live="polite">
             <span>
               Showing {clients.length} of {totalCount} clients
               {query && <span className="ml-1 text-blue-600">matching &ldquo;{query}&rdquo;</span>}
-            </span>
-            <span className="hidden sm:inline text-[11px] text-gray-400">
-              / search &bull; ↑↓ navigate &bull; Enter open &bull; Esc clear
             </span>
           </div>
 
@@ -883,7 +806,7 @@ export function ClientList({
           {viewMode === 'table' && (
             <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm print-full-width">
               <div className="overflow-x-auto">
-                <Table className={zebraStripes ? 'zebra-stripes' : ''}>
+                <Table>
                   <TableHeader className="bg-gray-50/80 sticky top-0 z-10">
                     <TableRow>
                       {canBulkEdit && (
@@ -973,10 +896,9 @@ export function ClientList({
                         </TableCell>
                       </TableRow>
                     ) : (
-                      clients.map((client, idx) => {
+                      clients.map((client) => {
                         const tierConfig = TIER_CONFIG[client.tier || 'bronze']
                         const TierIcon = tierConfig.icon
-                        const isFocused = idx === focusedRow
                         const isExpanded = expandedRow === client.id
                         const isDefaulted = client.status === 'defaulted'
                         const isWatchlisted = client.is_watchlisted
@@ -990,8 +912,7 @@ export function ClientList({
                           <React.Fragment key={client.id}>
                             <TableRow
                               className={`
-                                ${rowPadding} transition-colors cursor-pointer
-                                ${isFocused ? 'bg-blue-50 ring-1 ring-inset ring-blue-200' : 'hover:bg-slate-50/80'}
+                                ${rowPadding} transition-colors cursor-pointer hover:bg-slate-50/80
                                 ${isDefaulted ? 'border-l-[3px] border-l-red-400 bg-red-50/30' : ''}
                                 ${isWatchlisted && !isDefaulted ? 'border-l-[3px] border-l-amber-400' : ''}
                                 ${selectedIds.has(client.id) ? 'bg-blue-50/60' : ''}
@@ -1040,7 +961,7 @@ export function ClientList({
                                   <div className="flex items-center gap-2">
                                     <div>
                                       <p className="font-semibold text-gray-900 text-sm">{client.full_name}</p>
-                                      <p className="text-[11px] text-gray-400">{client.branch || '—'} • {client.area || '—'}</p>
+                                      <p className="text-[11px] text-gray-400">{client.area || '—'}</p>
                                     </div>
                                     {isWatchlisted && (
                                       <span title="Watchlisted"><ShieldAlert className="h-3.5 w-3.5 text-amber-500 shrink-0" /></span>
@@ -1466,30 +1387,6 @@ export function ClientList({
         {/* Analytics Sidebar (desktop only) */}
         {showSidebar && (
           <aside className="hidden lg:block w-72 shrink-0 space-y-4 no-print">
-            {/* Branch Breakdown */}
-            <Card className="border-gray-100">
-              <CardContent className="p-4 space-y-3">
-                <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wider flex items-center gap-1.5">
-                  <BarChart3 className="h-3.5 w-3.5 text-blue-500" />
-                  Branch Breakdown
-                </h3>
-                {branchBreakdown.slice(0, 8).map(b => {
-                  const pct = statusCounts.all > 0 ? Math.round((b.count / statusCounts.all) * 100) : 0
-                  return (
-                    <div key={b.branch}>
-                      <div className="flex items-center justify-between text-[11px] mb-0.5">
-                        <span className="text-gray-600 truncate">{b.branch}</span>
-                        <span className="font-medium text-gray-800">{b.count} ({pct}%)</span>
-                      </div>
-                      <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                        <div className="h-full bg-blue-500 rounded-full" style={{ width: `${pct}%` }} />
-                      </div>
-                    </div>
-                  )
-                })}
-              </CardContent>
-            </Card>
-
             {/* Top Earners (current page) */}
             <Card className="border-gray-100">
               <CardContent className="p-4 space-y-3">

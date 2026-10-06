@@ -27,7 +27,15 @@ export async function PATCH(
 
     const targetUserId = params.id
     const body = await request.json()
-    const { role, is_active, fullName, branch, email, newPassword } = body
+    const { role, is_active, fullName, email, newPassword } = body
+
+    // Login email and password may only be changed by the account holder via /api/profile
+    if (email !== undefined || newPassword !== undefined) {
+      return NextResponse.json(
+        { error: 'Only the account holder can change login credentials' },
+        { status: 403 }
+      )
+    }
 
     const adminClient = createAdminClient()
 
@@ -52,7 +60,7 @@ export async function PATCH(
       )
     }
 
-    // 1. Prepare updates for public.users
+    // 1. Prepare updates for public.users (role / status / display name only)
     const profileUpdates: Record<string, any> = {
       updated_at: new Date().toISOString(),
     }
@@ -73,14 +81,6 @@ export async function PATCH(
       profileUpdates.full_name = fullName.trim()
     }
 
-    if (branch !== undefined) {
-      profileUpdates.branch = branch ? branch.trim() : null
-    }
-
-    if (email !== undefined && email.trim()) {
-      profileUpdates.email = email.trim().toLowerCase()
-    }
-
     const { data: updatedProfile, error: profileErr } = await adminClient
       .from('users')
       .update(profileUpdates as any)
@@ -90,25 +90,13 @@ export async function PATCH(
 
     if (profileErr) throw profileErr
 
-    // 2. Prepare updates for Auth (auth.users)
+    // 2. Auth updates for metadata / ban status only (never credentials)
     const authUpdates: Record<string, any> = {}
 
-    if (newPassword && newPassword.trim()) {
-      if (newPassword.length < 6) {
-        return NextResponse.json({ error: 'Password must be at least 6 characters' }, { status: 400 })
-      }
-      authUpdates.password = newPassword.trim()
-    }
-
-    if (email && email.trim()) {
-      authUpdates.email = email.trim().toLowerCase()
-    }
-
-    if (fullName || role || branch) {
+    if (fullName || role) {
       authUpdates.user_metadata = {
         full_name: updatedProfile.full_name,
         role: updatedProfile.role,
-        branch: updatedProfile.branch,
       }
     }
 

@@ -200,10 +200,6 @@ export function ClientEditDialog({ client }: { client: ClientData }) {
                 <Input id="edit-baddress" name="business_address" value={form.business_address} onChange={handleChange} />
               </div>
               <div className="space-y-1">
-                <Label htmlFor="edit-branch">Branch</Label>
-                <Input id="edit-branch" name="branch" value={form.branch} onChange={handleChange} />
-              </div>
-              <div className="space-y-1">
                 <Label htmlFor="edit-area">Area</Label>
                 <Input id="edit-area" name="area" value={form.area} onChange={handleChange} />
               </div>

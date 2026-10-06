@@ -15,18 +15,14 @@ import {
   Users,
   UserPlus,
   ShieldCheck,
-  ShieldAlert,
-  KeyRound,
   Edit3,
   UserX,
   UserCheck,
   Search,
-  Building2,
   Mail,
   Loader2,
   CheckCircle2,
-  AlertTriangle,
-  Lock,
+  Trash2,
   Save,
 } from 'lucide-react'
 import type { Database, UserRole } from '@/lib/supabase/database.types'
@@ -55,7 +51,6 @@ export function UsersManager({ initialUsers, currentUserId, currentUserRole }: U
   // Modals state
   const [createModalOpen, setCreateModalOpen] = useState(false)
   const [editRoleModalOpen, setEditRoleModalOpen] = useState(false)
-  const [resetPassModalOpen, setResetPassModalOpen] = useState(false)
   const [editProfileModalOpen, setEditProfileModalOpen] = useState(false)
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null)
 
@@ -64,21 +59,14 @@ export function UsersManager({ initialUsers, currentUserId, currentUserRole }: U
   const [createEmail, setCreateEmail] = useState('')
   const [createPassword, setCreatePassword] = useState('')
   const [createRole, setCreateRole] = useState<UserRole>('loan_officer')
-  const [createBranch, setCreateBranch] = useState('Makola Branch')
   const [submittingCreate, setSubmittingCreate] = useState(false)
 
   // Form state for Role Assignment
   const [assignedRole, setAssignedRole] = useState<UserRole>('loan_officer')
   const [submittingRole, setSubmittingRole] = useState(false)
 
-  // Form state for Password Reset
-  const [adminResetPassword, setAdminResetPassword] = useState('')
-  const [submittingReset, setSubmittingReset] = useState(false)
-
   // Form state for Edit Profile
   const [editName, setEditName] = useState('')
-  const [editEmail, setEditEmail] = useState('')
-  const [editBranch, setEditBranch] = useState('')
   const [submittingEdit, setSubmittingEdit] = useState(false)
 
   // Action Loading
@@ -88,8 +76,7 @@ export function UsersManager({ initialUsers, currentUserId, currentUserRole }: U
   const filteredUsers = visibleStaff(usersList, currentUserRole).filter((u) => {
     const matchesSearch =
       u.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      u.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (u.branch || '').toLowerCase().includes(searchQuery.toLowerCase())
+      u.email.toLowerCase().includes(searchQuery.toLowerCase())
 
     const matchesRole = roleFilter === 'all' || u.role === roleFilter
     const matchesStatus =
@@ -114,7 +101,6 @@ export function UsersManager({ initialUsers, currentUserId, currentUserRole }: U
           email: createEmail,
           password: createPassword,
           role: createRole,
-          branch: createBranch,
         }),
       })
 
@@ -220,38 +206,7 @@ export function UsersManager({ initialUsers, currentUserId, currentUserRole }: U
     }
   }
 
-  // 4. Handle Admin Password Reset
-  const handleResetPasswordSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!selectedUser) return
-    setSubmittingReset(true)
-
-    try {
-      const res = await fetch(`/api/users/${selectedUser.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ newPassword: adminResetPassword }),
-      })
-
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Failed to reset password')
-
-      toast({
-        title: 'Password Reset Successful',
-        description: `New password assigned for ${selectedUser.full_name}.`,
-        variant: 'success',
-      })
-
-      setResetPassModalOpen(false)
-      setAdminResetPassword('')
-    } catch (err: any) {
-      toast({ title: 'Reset Failed', description: err.message, variant: 'destructive' })
-    } finally {
-      setSubmittingReset(false)
-    }
-  }
-
-  // 5. Handle Edit Staff Details
+  // 4. Handle Edit Staff Details (display name only — credentials are self-serve)
   const handleEditProfileSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!selectedUser) return
@@ -263,8 +218,6 @@ export function UsersManager({ initialUsers, currentUserId, currentUserRole }: U
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           fullName: editName,
-          email: editEmail,
-          branch: editBranch,
         }),
       })
 
@@ -280,7 +233,7 @@ export function UsersManager({ initialUsers, currentUserId, currentUserRole }: U
       setUsersList((prev) =>
         prev.map((u) =>
           u.id === selectedUser.id
-            ? { ...u, full_name: editName, email: editEmail, branch: editBranch }
+            ? { ...u, full_name: editName }
             : u
         )
       )
@@ -290,6 +243,47 @@ export function UsersManager({ initialUsers, currentUserId, currentUserRole }: U
       toast({ title: 'Update Failed', description: err.message, variant: 'destructive' })
     } finally {
       setSubmittingEdit(false)
+    }
+  }
+
+  // 5. Permanently delete a staff account
+  const handleDeleteUser = async (targetUser: UserProfile) => {
+    if (targetUser.id === currentUserId) {
+      toast({
+        title: 'Action Denied',
+        description: 'You cannot delete your own account',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    if (
+      !confirm(
+        `Permanently delete '${targetUser.full_name}'? This cannot be undone and removes their login access.`
+      )
+    ) {
+      return
+    }
+
+    setActionLoadingId(targetUser.id)
+
+    try {
+      const res = await fetch(`/api/users/${targetUser.id}`, { method: 'DELETE' })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to delete account')
+
+      toast({
+        title: 'Account Deleted',
+        description: `${targetUser.full_name} has been removed from the system.`,
+        variant: 'success',
+      })
+
+      setUsersList((prev) => prev.filter((u) => u.id !== targetUser.id))
+      router.refresh()
+    } catch (err: any) {
+      toast({ title: 'Delete Failed', description: err.message, variant: 'destructive' })
+    } finally {
+      setActionLoadingId(null)
     }
   }
 
@@ -311,7 +305,7 @@ export function UsersManager({ initialUsers, currentUserId, currentUserRole }: U
           <div>
             <h2 className="text-base font-bold text-gray-900">Staff & Role Administration</h2>
             <p className="text-xs text-gray-500">
-              Create staff accounts, assign/authorize security roles, and manage active status
+              Create staff accounts, assign roles, decommission, and delete accounts
             </p>
           </div>
         </div>
@@ -338,7 +332,7 @@ export function UsersManager({ initialUsers, currentUserId, currentUserRole }: U
               <div className="relative w-full sm:w-64">
                 <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-gray-400" />
                 <Input
-                  placeholder="Search staff name, email, branch..."
+                  placeholder="Search staff name or email..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-8 h-8 text-xs bg-white"
@@ -378,7 +372,6 @@ export function UsersManager({ initialUsers, currentUserId, currentUserRole }: U
                   <TableHead className="w-12 text-center">#</TableHead>
                   <TableHead>Staff Member</TableHead>
                   <TableHead>System Role</TableHead>
-                  <TableHead>Operating Branch</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Date Created</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -387,7 +380,7 @@ export function UsersManager({ initialUsers, currentUserId, currentUserRole }: U
               <tbody className="divide-y text-xs">
                 {filteredUsers.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="p-8 text-center text-gray-400 font-sans">
+                    <td colSpan={6} className="p-8 text-center text-gray-400 font-sans">
                       No staff users match the selected filters.
                     </td>
                   </tr>
@@ -419,9 +412,6 @@ export function UsersManager({ initialUsers, currentUserId, currentUserRole }: U
                             {rBadge.label}
                           </span>
                         </td>
-                        <td className="p-3 font-medium text-gray-700">
-                          {user.branch || <span className="text-gray-400">Head Office</span>}
-                        </td>
                         <td className="p-3">
                           {user.is_active ? (
                             <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
@@ -438,7 +428,6 @@ export function UsersManager({ initialUsers, currentUserId, currentUserRole }: U
                         </td>
                         <td className="p-3 text-right">
                           <div className="flex items-center justify-end gap-1.5">
-                            {/* Reassign Role */}
                             <Button
                               variant="outline"
                               size="sm"
@@ -453,31 +442,13 @@ export function UsersManager({ initialUsers, currentUserId, currentUserRole }: U
                               <ShieldCheck className="h-3 w-3" /> Role
                             </Button>
 
-                            {/* Reset Password */}
                             <Button
                               variant="outline"
                               size="sm"
-                              title="Reset Password"
-                              onClick={() => {
-                                setSelectedUser(user)
-                                setAdminResetPassword('')
-                                setResetPassModalOpen(true)
-                              }}
-                              className="h-7 px-2 text-[11px] gap-1 text-amber-700 border-amber-200 hover:bg-amber-50"
-                            >
-                              <KeyRound className="h-3 w-3" /> Key
-                            </Button>
-
-                            {/* Edit Profile */}
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              title="Edit Staff Info"
+                              title="Edit display name"
                               onClick={() => {
                                 setSelectedUser(user)
                                 setEditName(user.full_name)
-                                setEditEmail(user.email)
-                                setEditBranch(user.branch || '')
                                 setEditProfileModalOpen(true)
                               }}
                               className="h-7 px-2 text-[11px] text-gray-600 hover:bg-gray-100"
@@ -485,32 +456,50 @@ export function UsersManager({ initialUsers, currentUserId, currentUserRole }: U
                               <Edit3 className="h-3 w-3" />
                             </Button>
 
-                            {/* Decommission / Reactivate */}
                             {!isSelf && (
-                              <Button
-                                variant={user.is_active ? 'outline' : 'default'}
-                                size="sm"
-                                title={user.is_active ? 'Decommission Account' : 'Reactivate Account'}
-                                disabled={actionLoadingId === user.id}
-                                onClick={() => handleToggleActive(user)}
-                                className={`h-7 px-2 text-[11px] gap-1 ${
-                                  user.is_active
-                                    ? 'text-rose-700 border-rose-200 hover:bg-rose-50'
-                                    : 'bg-emerald-600 hover:bg-emerald-700 text-white'
-                                }`}
-                              >
-                                {actionLoadingId === user.id ? (
-                                  <Loader2 className="h-3 w-3 animate-spin" />
-                                ) : user.is_active ? (
-                                  <>
-                                    <UserX className="h-3 w-3" /> Decommission
-                                  </>
-                                ) : (
-                                  <>
-                                    <UserCheck className="h-3 w-3" /> Reactivate
-                                  </>
-                                )}
-                              </Button>
+                              <>
+                                <Button
+                                  variant={user.is_active ? 'outline' : 'default'}
+                                  size="sm"
+                                  title={user.is_active ? 'Decommission Account' : 'Reactivate Account'}
+                                  disabled={actionLoadingId === user.id}
+                                  onClick={() => handleToggleActive(user)}
+                                  className={`h-7 px-2 text-[11px] gap-1 ${
+                                    user.is_active
+                                      ? 'text-rose-700 border-rose-200 hover:bg-rose-50'
+                                      : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                                  }`}
+                                >
+                                  {actionLoadingId === user.id ? (
+                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                  ) : user.is_active ? (
+                                    <>
+                                      <UserX className="h-3 w-3" /> Decommission
+                                    </>
+                                  ) : (
+                                    <>
+                                      <UserCheck className="h-3 w-3" /> Reactivate
+                                    </>
+                                  )}
+                                </Button>
+
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  title="Delete Account"
+                                  disabled={actionLoadingId === user.id}
+                                  onClick={() => handleDeleteUser(user)}
+                                  className="h-7 px-2 text-[11px] gap-1 text-red-700 border-red-200 hover:bg-red-50"
+                                >
+                                  {actionLoadingId === user.id ? (
+                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                  ) : (
+                                    <>
+                                      <Trash2 className="h-3 w-3" /> Delete
+                                    </>
+                                  )}
+                                </Button>
+                              </>
                             )}
                           </div>
                         </td>
@@ -578,34 +567,20 @@ export function UsersManager({ initialUsers, currentUserId, currentUserRole }: U
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="cRole" className="text-xs">System Role *</Label>
-                <select
-                  id="cRole"
-                  value={createRole}
-                  onChange={(e) => setCreateRole(e.target.value as UserRole)}
-                  className="w-full border rounded-md px-2 py-2 text-xs bg-white"
-                  required
-                >
-                  <option value="loan_officer">Loan Officer</option>
-                  <option value="supervisor">Supervisor</option>
-                  <option value="manager">Branch Manager</option>
-                  {viewerIsSuperAdmin && <option value="accountant_admin">Super Admin</option>}
-                </select>
-              </div>
-
-              <div className="space-y-1.5">
-                <Label htmlFor="cBranch" className="text-xs">Operating Branch *</Label>
-                <Input
-                  id="cBranch"
-                  placeholder="Makola Branch"
-                  value={createBranch}
-                  onChange={(e) => setCreateBranch(e.target.value)}
-                  required
-                  className="text-xs"
-                />
-              </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="cRole" className="text-xs">System Role *</Label>
+              <select
+                id="cRole"
+                value={createRole}
+                onChange={(e) => setCreateRole(e.target.value as UserRole)}
+                className="w-full border rounded-md px-2 py-2 text-xs bg-white"
+                required
+              >
+                <option value="loan_officer">Loan Officer</option>
+                <option value="supervisor">Supervisor</option>
+                <option value="manager">Manager</option>
+                {viewerIsSuperAdmin && <option value="accountant_admin">Super Admin</option>}
+              </select>
             </div>
 
             <DialogFooter className="gap-2 sm:gap-0 pt-2">
@@ -671,7 +646,7 @@ export function UsersManager({ initialUsers, currentUserId, currentUserRole }: U
                   },
                   {
                     id: 'manager',
-                    title: 'Branch Manager',
+                    title: 'Manager',
                   },
                   {
                     id: 'accountant_admin',
@@ -738,69 +713,7 @@ export function UsersManager({ initialUsers, currentUserId, currentUserRole }: U
       </Dialog>
 
       {/* ============================================================ */}
-      {/* 3. RESET STAFF PASSWORD MODAL */}
-      {/* ============================================================ */}
-      <Dialog open={resetPassModalOpen} onOpenChange={setResetPassModalOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-base">
-              <KeyRound className="h-5 w-5 text-amber-600" />
-              Reset Staff Password
-            </DialogTitle>
-            <DialogDescription className="text-xs">
-              Assign a new login password for <strong>{selectedUser?.full_name}</strong> ({selectedUser?.email}).
-            </DialogDescription>
-          </DialogHeader>
-
-          <form onSubmit={handleResetPasswordSubmit} className="space-y-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="adminResetPass" className="text-xs">New Password (min. 6 chars) *</Label>
-              <Input
-                id="adminResetPass"
-                type="password"
-                placeholder="Enter new password"
-                value={adminResetPassword}
-                onChange={(e) => setAdminResetPassword(e.target.value)}
-                required
-                className="text-xs"
-              />
-            </div>
-
-            <DialogFooter className="gap-2 sm:gap-0 pt-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setResetPassModalOpen(false)}
-                disabled={submittingReset}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                size="sm"
-                disabled={submittingReset || adminResetPassword.length < 6}
-                className="bg-amber-600 hover:bg-amber-700 text-white font-bold"
-              >
-                {submittingReset ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Resetting Password...
-                  </>
-                ) : (
-                  <>
-                    <KeyRound className="mr-2 h-4 w-4" />
-                    Save New Password
-                  </>
-                )}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      {/* ============================================================ */}
-      {/* 4. EDIT STAFF PROFILE MODAL */}
+      {/* 3. EDIT STAFF PROFILE MODAL */}
       {/* ============================================================ */}
       <Dialog open={editProfileModalOpen} onOpenChange={setEditProfileModalOpen}>
         <DialogContent className="max-w-md">
@@ -810,7 +723,7 @@ export function UsersManager({ initialUsers, currentUserId, currentUserRole }: U
               Edit Staff Details
             </DialogTitle>
             <DialogDescription className="text-xs">
-              Update name, email, or operating branch assignment.
+              Update the staff display name. Login email and password can only be changed by the account holder from their profile.
             </DialogDescription>
           </DialogHeader>
 
@@ -822,29 +735,6 @@ export function UsersManager({ initialUsers, currentUserId, currentUserRole }: U
                 value={editName}
                 onChange={(e) => setEditName(e.target.value)}
                 required
-                className="text-xs"
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="eEmail" className="text-xs">Email Address *</Label>
-              <Input
-                id="eEmail"
-                type="email"
-                value={editEmail}
-                onChange={(e) => setEditEmail(e.target.value)}
-                required
-                className="text-xs"
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="eBranch" className="text-xs">Assigned Branch</Label>
-              <Input
-                id="eBranch"
-                value={editBranch}
-                onChange={(e) => setEditBranch(e.target.value)}
-                placeholder="Makola Branch"
                 className="text-xs"
               />
             </div>

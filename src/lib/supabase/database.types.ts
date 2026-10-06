@@ -23,7 +23,16 @@ export type InstallmentStatus = 'upcoming' | 'paid' | 'partially_paid' | 'overdu
 export type TransactionType = 'disbursement' | 'repayment' | 'fee' | 'reversal'
 export type TransactionDirection = 'debit' | 'credit'
 export type PaymentMethod = 'cash' | 'momo'
-export type SmsMessageType = 'reminder' | 'confirmation' | 'approval' | 'disbursement' | 'overdue' | 'defaulter' | 'broadcast'
+export type SmsMessageType =
+  | 'welcome'
+  | 'reminder'
+  | 'confirmation'
+  | 'loan_closed'
+  | 'approval'
+  | 'disbursement'
+  | 'overdue'
+  | 'defaulter'
+  | 'broadcast'
 export type SmsStatus = 'sent' | 'failed' | 'pending'
 
 export interface Database {

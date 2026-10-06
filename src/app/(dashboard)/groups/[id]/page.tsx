@@ -408,7 +408,7 @@ export default async function GroupDetailPage({ params }: { params: { id: string
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-500 mt-1">
                 <span className="inline-flex items-center gap-1">
                   <MapPin className="h-3.5 w-3.5" />
-                  {g.branch || '—'} • {g.area || '—'}
+                  {g.area || '—'}
                 </span>
                 <span className="inline-flex items-center gap-1">
                   <Calendar className="h-3.5 w-3.5" />

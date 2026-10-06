@@ -22,13 +22,21 @@ export interface SmsProvider {
 }
 
 export const SMS_TEMPLATES = {
-  /** Sent 1 day before installment due date */
+  /** Sent when a client is first registered on the system */
+  welcome: (clientName: string, accountNumber: string) =>
+    `Dear ${clientName}, welcome to Beyond Sky Micro-Credit Enterprise. Your account ${accountNumber} is now active. We look forward to serving you.`,
+
+  /** Sent 1 day before installment due date (or per sms_reminder_days_before) */
   reminder: (clientName: string, amount: number, dueDate: string, loanNumber: string) =>
     `Dear ${clientName}, your installment of GHS ${amount.toFixed(2)} for loan ${loanNumber} is due on ${dueDate}. Please pay promptly. Beyond Sky Micro-Credit Enterprise.`,
 
   /** Sent immediately after repayment is recorded */
   confirmation: (clientName: string, amount: number, balance: number, loanNumber: string, date: string) =>
     `Dear ${clientName}, we received GHS ${amount.toFixed(2)} on ${date} for loan ${loanNumber}. Remaining balance: GHS ${balance.toFixed(2)}. Beyond Sky Micro-Credit Enterprise.`,
+
+  /** Sent when the loan is fully paid and closed */
+  loan_closed: (clientName: string, loanNumber: string, amountPaid: number) =>
+    `Dear ${clientName}, congratulations! Loan ${loanNumber} is now FULLY PAID. Final payment received: GHS ${amountPaid.toFixed(2)}. Thank you for banking with Beyond Sky Micro-Credit Enterprise.`,
 
   /** Sent when loan application is approved */
   approval: (clientName: string, amount: number, loanNumber: string, weeklyInstallment: number) =>

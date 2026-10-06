@@ -172,6 +172,7 @@
 }
 
 /* Zebra striping utility */
+/* zebra striping removed from product UI */
 .zebra-stripes tbody tr:nth-child(even) {
   background-color: rgb(249 250 251 / 0.5);
 }

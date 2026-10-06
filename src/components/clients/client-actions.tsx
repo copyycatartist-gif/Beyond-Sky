@@ -5,8 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
-  ShieldAlert, Archive, ArrowLeftRight, X, Check, Loader2,
-  Building2, Undo2
+  ShieldAlert, Archive, X, Check, Loader2, Undo2
 } from 'lucide-react'
 
 interface ClientActionsProps {
@@ -14,23 +13,19 @@ interface ClientActionsProps {
   isWatchlisted: boolean
   watchlistReason: string | null
   isArchived: boolean
-  currentBranch: string | null
-  branches: string[]
+  currentBranch?: string | null
+  branches?: string[]
   userRole: string
 }
 
 export function ClientActions({
-  clientId, isWatchlisted, watchlistReason, isArchived,
-  currentBranch, branches, userRole
+  clientId, isWatchlisted, watchlistReason, isArchived, userRole
 }: ClientActionsProps) {
   const router = useRouter()
   const [loading, setLoading] = useState<string | null>(null)
   const [showWatchlistDialog, setShowWatchlistDialog] = useState(false)
-  const [showTransferDialog, setShowTransferDialog] = useState(false)
   const [showArchiveConfirm, setShowArchiveConfirm] = useState(false)
   const [watchlistReasonInput, setWatchlistReasonInput] = useState('')
-  const [transferBranch, setTransferBranch] = useState('')
-  const [transferReason, setTransferReason] = useState('')
 
   const isManager = ['manager', 'supervisor', 'accountant_admin'].includes(userRole)
 
@@ -70,27 +65,9 @@ export function ClientActions({
     }
   }
 
-  const handleTransfer = async () => {
-    if (!transferBranch) return
-    setLoading('transfer')
-    const res = await fetch('/api/clients/transfer', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ clientId, newBranch: transferBranch, reason: transferReason }),
-    })
-    setLoading(null)
-    if (res.ok) {
-      setShowTransferDialog(false)
-      setTransferBranch('')
-      setTransferReason('')
-      router.refresh()
-    }
-  }
-
   return (
     <>
       <div className="flex items-center gap-2 flex-wrap">
-        {/* Watchlist toggle */}
         <Button
           variant="outline"
           size="sm"
@@ -103,19 +80,6 @@ export function ClientActions({
           {isWatchlisted ? 'Unwatch' : 'Watchlist'}
         </Button>
 
-        {/* Branch transfer */}
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-8 text-xs gap-1.5 text-gray-600 hover:text-blue-700 hover:border-blue-200"
-          onClick={() => setShowTransferDialog(true)}
-          title="Transfer to another branch"
-        >
-          <ArrowLeftRight className="h-3 w-3" />
-          Transfer
-        </Button>
-
-        {/* Archive / Unarchive */}
         <Button
           variant="outline"
           size="sm"
@@ -129,7 +93,6 @@ export function ClientActions({
         </Button>
       </div>
 
-      {/* Watchlist reason dialog */}
       {showWatchlistDialog && (
         <div className="focus-trap-overlay" onClick={() => setShowWatchlistDialog(false)}>
           <div
@@ -173,66 +136,6 @@ export function ClientActions({
         </div>
       )}
 
-      {/* Transfer dialog */}
-      {showTransferDialog && (
-        <div className="focus-trap-overlay" onClick={() => setShowTransferDialog(false)}>
-          <div
-            role="dialog"
-            aria-labelledby="transfer-title"
-            className="bg-white rounded-xl shadow-xl p-5 w-full max-w-sm mx-4 space-y-4"
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between">
-              <h3 id="transfer-title" className="text-sm font-bold text-gray-900 flex items-center gap-2">
-                <Building2 className="h-4 w-4 text-blue-600" />
-                Transfer Branch
-              </h3>
-              <button onClick={() => setShowTransferDialog(false)} className="text-gray-400 hover:text-gray-600">
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-            <p className="text-xs text-gray-500">
-              Current branch: <strong>{currentBranch || 'Unassigned'}</strong>
-            </p>
-            <div>
-              <label className="text-xs font-medium text-gray-600 block mb-1">New Branch</label>
-              <select
-                value={transferBranch}
-                onChange={(e) => setTransferBranch(e.target.value)}
-                className="w-full h-9 rounded-md border border-gray-300 bg-white px-3 text-sm"
-              >
-                <option value="">Select branch...</option>
-                {branches.filter(b => b !== currentBranch).map(b => (
-                  <option key={b} value={b}>{b}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="text-xs font-medium text-gray-600 block mb-1">Reason (optional)</label>
-              <Input
-                value={transferReason}
-                onChange={(e) => setTransferReason(e.target.value)}
-                placeholder="e.g. Client relocated..."
-                className="text-sm"
-              />
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button variant="ghost" size="sm" onClick={() => setShowTransferDialog(false)}>Cancel</Button>
-              <Button
-                size="sm"
-                className="bg-blue-600 hover:bg-blue-700 gap-1.5"
-                onClick={handleTransfer}
-                disabled={!transferBranch || loading === 'transfer'}
-              >
-                {loading === 'transfer' ? <Loader2 className="h-3 w-3 animate-spin" /> : <ArrowLeftRight className="h-3 w-3" />}
-                Transfer
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Archive confirmation */}
       {showArchiveConfirm && (
         <div className="focus-trap-overlay" onClick={() => setShowArchiveConfirm(false)}>
           <div

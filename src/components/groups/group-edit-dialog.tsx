@@ -70,7 +70,6 @@ function validate(form: FormState, activeMemberCount: number): Record<string, st
   if (!form.name.trim() || form.name.trim().length < 3) {
     errors.name = 'Group name must be at least 3 characters.'
   }
-  if (!form.branch.trim()) errors.branch = 'Branch is required.'
   if (!form.area.trim()) errors.area = 'Area is required.'
   if (!form.meeting_day) errors.meeting_day = 'Meeting day is required.'
 
@@ -156,7 +155,7 @@ export function GroupEditDialog({ group, members, activeMemberCount }: GroupEdit
     try {
       const payload = {
         name: form.name.trim(),
-        branch: form.branch.trim(),
+        branch: null,
         area: form.area.trim(),
         meeting_day: form.meeting_day,
         meeting_place: form.meeting_place.trim() || null,
@@ -224,17 +223,10 @@ export function GroupEditDialog({ group, members, activeMemberCount }: GroupEdit
               <FieldError field="name" />
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="ge-branch">Operating Branch *</Label>
-                <Input id="ge-branch" name="branch" value={form.branch} onChange={handleChange} required />
-                <FieldError field="branch" />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="ge-area">Area / Territory *</Label>
-                <Input id="ge-area" name="area" value={form.area} onChange={handleChange} required />
-                <FieldError field="area" />
-              </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="ge-area">Area / Territory *</Label>
+              <Input id="ge-area" name="area" value={form.area} onChange={handleChange} required />
+              <FieldError field="area" />
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

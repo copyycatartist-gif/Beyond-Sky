@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { useToast } from '@/components/ui/use-toast'
 import {
-  Loader2, Building2, User, MapPin, Church, ShieldCheck, ChevronLeft,
+  Loader2, User, MapPin, Church, ShieldCheck, ChevronLeft,
   ChevronRight, Check, AlertTriangle, Save, Eye, Phone, Search, Camera, X
 } from 'lucide-react'
 import Link from 'next/link'
@@ -50,7 +50,7 @@ const clientSchema = z.object({
   guarantor_residential_address: z.string().min(5, 'Required'),
   guarantor_religion: z.string().optional().or(z.literal('')),
   guarantor_place_of_worship: z.string().optional().or(z.literal('')),
-  branch: z.string().min(2, 'Required'),
+  branch: z.string().optional().or(z.literal('')),
   area: z.string().min(2, 'Required'),
   data_protection_consent: z.literal(true, { errorMap: () => ({ message: 'Consent is required' }) }),
 })
@@ -58,7 +58,7 @@ const clientSchema = z.object({
 type FormData = z.input<typeof clientSchema> & { data_protection_consent: boolean }
 
 const STEPS = [
-  { id: 0, title: 'Branch & Territory', icon: Building2 },
+  { id: 0, title: 'Territory', icon: MapPin },
   { id: 1, title: 'Personal Information', icon: User },
   { id: 2, title: 'Business & Address', icon: MapPin },
   { id: 3, title: 'Faith Reference', icon: Church },
@@ -126,7 +126,7 @@ export function ClientForm() {
       }
     }
     return {
-      branch: 'Makola Branch',
+      branch: '',
       area: 'Accra Central',
       full_name: '',
       phone_number: '',
@@ -259,7 +259,7 @@ export function ClientForm() {
 
   const validateStep = (step: number): boolean => {
     const stepFields: Record<number, string[]> = {
-      0: ['branch', 'area'],
+      0: ['area'],
       1: ['full_name', 'phone_number', 'national_id', 'spouse_or_father_name', 'marital_status'],
       2: ['present_address', 'permanent_address', 'business_type', 'market_location', 'daily_business_income'],
       3: ['religion', 'place_of_worship', 'religious_leader_name', 'religious_leader_phone'],
@@ -330,7 +330,7 @@ export function ClientForm() {
           full_name: formData.full_name.trim(),
           phone_number: (formData.phone_number as string).replace(/\s/g, ''),
           national_id: formData.national_id.trim(),
-          branch: formData.branch,
+          branch: null,
           area: formData.area,
           spouse_or_father_name: formData.spouse_or_father_name?.trim() || null,
           age: formData.age ? parseInt(formData.age as any) : null,
@@ -382,6 +382,19 @@ export function ClientForm() {
           await fetch('/api/clients/photo', { method: 'POST', body: photoForm })
         } catch {
           // Photo upload failure is non-fatal
+        }
+      }
+
+      // Welcome SMS — best-effort; never block registration
+      if (data.id) {
+        try {
+          await fetch('/api/clients/welcome-sms', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ clientId: data.id }),
+          })
+        } catch {
+          // SMS failure is non-fatal
         }
       }
 
@@ -509,22 +522,17 @@ export function ClientForm() {
         </div>
       )}
 
-      {/* Step 0: Branch */}
+      {/* Step 0: Territory */}
       {currentStep === 0 && (
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base text-gray-900 flex items-center gap-2">
-              <Building2 className="h-4 w-4 text-blue-600" />
-              1. Branch & Operational Area
+              <MapPin className="h-4 w-4 text-blue-600" />
+              1. Operational Area
             </CardTitle>
-            <CardDescription>Assigned branch and field territory for monitoring and collections.</CardDescription>
+            <CardDescription>Field territory for monitoring and collections.</CardDescription>
           </CardHeader>
           <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="branch">Operating Branch *</Label>
-              <Input id="branch" name="branch" value={formData.branch} onChange={handleChange} placeholder="e.g. Makola Branch" required />
-              {errors.branch && <p className="text-xs text-red-500">{errors.branch}</p>}
-            </div>
             <div className="space-y-1.5">
               <Label htmlFor="area">Area / Zone / Territory *</Label>
               <Input id="area" name="area" value={formData.area} onChange={handleChange} placeholder="e.g. Makola Market Central" required />

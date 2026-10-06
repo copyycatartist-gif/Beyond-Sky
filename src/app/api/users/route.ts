@@ -57,7 +57,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    const { email, password, fullName, role = 'loan_officer', branch = 'Makola Branch' } = body
+    const { email, password, fullName, role = 'loan_officer' } = body
 
     if (!email || !password || !fullName) {
       return NextResponse.json({ error: 'Missing required fields: email, password, fullName' }, { status: 400 })
@@ -82,7 +82,6 @@ export async function POST(request: Request) {
       user_metadata: {
         full_name: fullName.trim(),
         role: role,
-        branch: branch.trim(),
       },
     })
 
@@ -98,7 +97,7 @@ export async function POST(request: Request) {
         full_name: fullName.trim(),
         email: email.trim().toLowerCase(),
         role: role,
-        branch: branch.trim(),
+        branch: null,
         is_active: true,
       })
       .select()
@@ -116,7 +115,7 @@ export async function POST(request: Request) {
         email: authData.user.email,
         full_name: fullName,
         role,
-        branch,
+        branch: null,
         is_active: true,
       },
     })

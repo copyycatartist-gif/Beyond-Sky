@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { useToast } from '@/components/ui/use-toast'
 import { cn } from '@/lib/utils'
 import {
-  Building2,
+  MapPin,
   UsersRound,
   Calendar,
   ShieldCheck,
@@ -52,22 +52,11 @@ const GROUP_TYPES = [
 ]
 
 const STEP_META = [
-  { title: 'Branch & Type', icon: Building2 },
+  { title: 'Area & Type', icon: MapPin },
   { title: 'Group Details', icon: UsersRound },
   { title: 'Meeting Schedule', icon: Calendar },
   { title: 'Rules & Capacity', icon: ShieldCheck },
   { title: 'Review & Create', icon: Check },
-]
-
-const BRANCH_SUGGESTIONS = [
-  'Makola Branch',
-  'Kaneshie Branch',
-  'Madina Branch',
-  'Achimota Branch',
-  'Kaneshie Market Branch',
-  'Tema Branch',
-  'Kasoa Branch',
-  'Circle Branch',
 ]
 
 interface GroupFormState {
@@ -99,7 +88,7 @@ interface TemplateGroup {
 }
 
 const DEFAULT_FORM: GroupFormState = {
-  branch: 'Makola Branch',
+  branch: '',
   area: '',
   groupType: 'solidarity',
   name: '',
@@ -201,9 +190,9 @@ export function GroupForm() {
     }
   }, [form, step, consent, hydrated])
 
-  // ---------- Load branch peer meeting days when branch changes ----------
+  // ---------- Load peer meeting days from other active groups ----------
   useEffect(() => {
-    if (!hydrated || !form.branch.trim()) {
+    if (!hydrated) {
       setBranchPeerDays([])
       return
     }
@@ -215,7 +204,6 @@ export function GroupForm() {
         const { data } = await supabase
           .from('groups')
           .select('name, meeting_day')
-          .ilike('branch', form.branch.trim())
           .eq('status', 'active')
 
         if (cancelled) return
@@ -240,7 +228,7 @@ export function GroupForm() {
     return () => {
       cancelled = true
     }
-  }, [form.branch, hydrated])
+  }, [hydrated])
 
   const freeDays = useMemo(
     () => MEETING_DAYS.filter((d) => !branchPeerDays.some((p) => p.day === d)),
@@ -341,7 +329,6 @@ export function GroupForm() {
   const validateStep = (target: number): Record<string, string> => {
     const errs: Record<string, string> = {}
     if (target >= 1) {
-      if (!form.branch.trim()) errs.branch = 'Operating branch is required'
       if (!form.area.trim()) errs.area = 'Area / territory is required'
       if (!['solidarity', 'individual', 'cooperative'].includes(form.groupType)) {
         errs.groupType = 'Select a group type'
@@ -448,7 +435,7 @@ export function GroupForm() {
         .from('groups')
         .insert({
           name: form.name.trim(),
-          branch: form.branch.trim(),
+          branch: null,
           area: form.area.trim(),
           group_type: form.groupType as any,
           description: form.description.trim() || null,
@@ -490,7 +477,6 @@ export function GroupForm() {
 
   // ---------- Review rows ----------
   const reviewRows: { label: string; value: string; step: number }[] = [
-    { label: 'Operating Branch', value: form.branch || '\u2014', step: 1 },
     { label: 'Area / Territory', value: form.area || '\u2014', step: 1 },
     {
       label: 'Group Type',
@@ -531,7 +517,7 @@ export function GroupForm() {
               {templates.map((t) => (
                 <option key={t.id} value={t.id}>
                   {t.group_number ? `${t.group_number} — ` : ''}
-                  {t.name} ({t.branch ?? '—'})
+                  {t.name}{t.area ? ` (${t.area})` : ''}
                 </option>
               ))}
             </select>
@@ -605,7 +591,7 @@ export function GroupForm() {
             Step {step} of 5 — {STEP_META[step - 1].title}
           </CardTitle>
           <CardDescription>
-            {step === 1 && 'Where does the group operate and what liability model does it follow?'}
+            {step === 1 && 'What area does the group operate in and what liability model does it follow?'}
             {step === 2 && 'Name the group and describe its purpose.'}
             {step === 3 && 'When and where the group meets each week.'}
             {step === 4 && 'Capacity hard cap, tenure requirements and guarantor chain policy.'}
@@ -613,27 +599,10 @@ export function GroupForm() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* ===== Step 1: Branch & Type ===== */}
+          {/* ===== Step 1: Area & Type ===== */}
           {step === 1 && (
             <>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div className="space-y-1.5">
-                  <Label htmlFor="branch">Operating Branch *</Label>
-                  <Input
-                    id="branch"
-                    list="branch-suggestions"
-                    value={form.branch}
-                    onChange={(e) => update('branch', e.target.value)}
-                    placeholder="e.g. Makola Branch"
-                    autoFocus
-                  />
-                  <datalist id="branch-suggestions">
-                    {BRANCH_SUGGESTIONS.map((b) => (
-                      <option key={b} value={b} />
-                    ))}
-                  </datalist>
-                  {errors.branch && <p className="text-xs text-red-600">{errors.branch}</p>}
-                </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="area">Area / Territory *</Label>
                   <Input
@@ -641,6 +610,7 @@ export function GroupForm() {
                     value={form.area}
                     onChange={(e) => update('area', e.target.value)}
                     placeholder="e.g. Central Market Area"
+                    autoFocus
                   />
                   {errors.area && <p className="text-xs text-red-600">{errors.area}</p>}
                 </div>
@@ -754,15 +724,15 @@ export function GroupForm() {
               <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
                 <p className="flex items-center gap-1.5 text-xs font-semibold text-gray-700">
                   <Calendar className="h-3.5 w-3.5 text-blue-600" />
-                  Meeting days used by other groups at {form.branch || 'this branch'}
+                  Meeting days used by other active groups
                 </p>
                 {loadingPeers ? (
                   <p className="mt-2 flex items-center gap-1.5 text-xs text-gray-400">
-                    <Loader2 className="h-3 w-3 animate-spin" /> Loading branch schedule...
+                    <Loader2 className="h-3 w-3 animate-spin" /> Loading schedule...
                   </p>
                 ) : branchPeerDays.length === 0 ? (
                   <p className="mt-2 text-xs text-gray-500">
-                    No other active groups found at this branch — any day works.
+                    No other active groups found — any day works.
                   </p>
                 ) : (
                   <ul className="mt-2 space-y-1.5">

@@ -35,7 +35,7 @@ export default async function UsersPage() {
       <div>
         <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Staff & Role Administration</h1>
         <p className="text-gray-500 text-sm mt-0.5">
-          Provision staff accounts, authorize security roles, decommission access, and reset passwords
+          Provision staff accounts, authorize security roles, decommission access, and delete accounts
         </p>
       </div>
 

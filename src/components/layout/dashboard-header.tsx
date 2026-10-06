@@ -71,7 +71,7 @@ export function DashboardHeader({
               Beyond Sky Micro-Credit Enterprise
             </span>
             <span className="text-[11px] text-gray-500 hidden sm:inline">
-              {user?.branch ? `Branch: ${user.branch}` : 'Micro-Credit Loan Management'}
+              Micro-Credit Loan Management
             </span>
           </div>
         </div>

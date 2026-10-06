@@ -90,22 +90,40 @@ export async function POST(request: Request) {
       .eq('loan_id', loan.id)
       .single()
 
-    const remainingBal = Math.max(0, summary?.outstanding_balance || 0)
+    const remainingBal = Math.max(0, Number(summary?.outstanding_balance) || 0)
+    const paidAmount = parseFloat(amount)
+    const loanFullyPaid = remainingBal <= 0.009
 
-    // 4. Send Confirmation SMS to client
+    // 4. Send Confirmation SMS (and payoff SMS when the loan is cleared)
     if (loan.clients?.phone_number) {
-      await sendTemplatedSms(
-        loan.clients.phone_number,
-        'confirmation',
-        [loan.clients.full_name, parseFloat(amount), remainingBal, loan.loan_number, formatDate(date)],
-        { clientId: loan.client_id, loanId: loan.id }
-      )
+      try {
+        await sendTemplatedSms(
+          loan.clients.phone_number,
+          'confirmation',
+          [loan.clients.full_name, paidAmount, remainingBal, loan.loan_number, formatDate(date)],
+          { clientId: loan.client_id, loanId: loan.id }
+        )
+
+        if (loanFullyPaid) {
+          await sendTemplatedSms(
+            loan.clients.phone_number,
+            'loan_closed',
+            [loan.clients.full_name, loan.loan_number, paidAmount],
+            { clientId: loan.client_id, loanId: loan.id }
+          )
+        }
+      } catch (smsErr) {
+        console.error('[Repayment SMS Error]', smsErr)
+      }
     }
 
     return NextResponse.json({
       success: true,
-      message: `Repayment of GHS ${parseFloat(amount).toFixed(2)} recorded successfully via ${method.toUpperCase()}. Remaining balance: GHS ${remainingBal.toFixed(2)}.`,
+      message: loanFullyPaid
+        ? `Repayment of GHS ${paidAmount.toFixed(2)} recorded. Loan ${loan.loan_number} is now fully paid.`
+        : `Repayment of GHS ${paidAmount.toFixed(2)} recorded successfully via ${method.toUpperCase()}. Remaining balance: GHS ${remainingBal.toFixed(2)}.`,
       remainingBalance: remainingBal,
+      loanClosed: loanFullyPaid,
     })
   } catch (err: any) {
     console.error('[Repayment Recording Error]', err)

@@ -14,7 +14,7 @@ import {
   MoreHorizontal, X, ChevronUp, ChevronDown, ChevronsUpDown, ChevronLeft,
   ChevronRight, ChevronsLeft, ChevronsRight, Download, Grid, List,
   CheckCircle2, AlertTriangle, Clock, PauseCircle, Sparkles, Calendar,
-  MapPin, Crown, RefreshCw, CircleSlash, Filter, Columns3, Rows3,
+  MapPin, Crown, RefreshCw, CircleSlash, Filter, Columns3,
   Bookmark, BookmarkCheck, History, Trash2, WifiOff, Gauge, Link2, User,
   Building2, Loader2, ArrowUpDown
 } from 'lucide-react'
@@ -66,12 +66,10 @@ interface SavedFilter {
 }
 
 type ViewMode = 'table' | 'cards'
-type Density = 'comfortable' | 'compact'
 
 const STORAGE_KEYS = {
   viewMode: 'beyondsky.groups.viewMode',
   columns: 'beyondsky.groups.columns',
-  density: 'beyondsky.groups.density',
   recentSearches: 'beyondsky.groups.recentSearches',
   savedFilters: 'beyondsky.groups.savedFilters',
 }
@@ -101,7 +99,7 @@ const ALL_COLUMNS: ColumnDef[] = [
   { key: 'type', label: 'Type', locked: false },
   { key: 'capacity', label: 'Capacity', locked: false },
   { key: 'status', label: 'Status', locked: false },
-  { key: 'branch', label: 'Branch / Area', locked: false },
+  { key: 'branch', label: 'Area', locked: false },
   { key: 'meeting', label: 'Meeting Day', locked: false },
   { key: 'leader', label: 'Leader', locked: false },
   { key: 'formed', label: 'Formed', locked: false },
@@ -255,9 +253,7 @@ export function GroupList({
 
   const [searchInput, setSearchInput] = useState(search)
   const [viewMode, setViewMode] = useState<ViewMode>('table')
-  const [density, setDensity] = useState<Density>('comfortable')
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
-  const [focusedRow, setFocusedRow] = useState(-1)
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
   const [bulkBusy, setBulkBusy] = useState(false)
   const [showColumnPicker, setShowColumnPicker] = useState(false)
@@ -272,7 +268,6 @@ export function GroupList({
 
   const debounceRef = useRef<NodeJS.Timeout | null>(null)
   const searchRef = useRef<HTMLInputElement>(null)
-  const rootRef = useRef<HTMLDivElement>(null)
 
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize))
   const canExport = ['manager', 'supervisor', 'accountant_admin', 'loan_officer'].includes(userRole)
@@ -296,8 +291,6 @@ export function GroupList({
         next.add('actions')
         setVisibleColumns(next)
       }
-      const d = localStorage.getItem(STORAGE_KEYS.density)
-      if (d === 'compact' || d === 'comfortable') setDensity(d)
       const rs = localStorage.getItem(STORAGE_KEYS.recentSearches)
       if (rs) setRecentSearches(JSON.parse(rs))
       const sf = localStorage.getItem(STORAGE_KEYS.savedFilters)
@@ -312,10 +305,6 @@ export function GroupList({
   useEffect(() => {
     try { localStorage.setItem(STORAGE_KEYS.columns, JSON.stringify(Array.from(visibleColumns))) } catch {}
   }, [visibleColumns])
-
-  useEffect(() => {
-    try { localStorage.setItem(STORAGE_KEYS.density, density) } catch {}
-  }, [density])
 
   // ---------------------------------------------------------------------------
   // Offline indicator
@@ -573,34 +562,6 @@ export function GroupList({
     })
   }
 
-  // ---------------------------------------------------------------------------
-  // Keyboard navigation
-  // ---------------------------------------------------------------------------
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    const target = e.target as HTMLElement
-    const typing = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT'
-
-    if (e.key === 'ArrowDown' && !typing) {
-      e.preventDefault()
-      setFocusedRow(prev => Math.min(prev + 1, groups.length - 1))
-    } else if (e.key === 'ArrowUp' && !typing) {
-      e.preventDefault()
-      setFocusedRow(prev => Math.max(prev - 1, 0))
-    } else if (e.key === 'Enter' && !typing && focusedRow >= 0 && groups[focusedRow]) {
-      router.push(`/groups/${groups[focusedRow].id}`)
-    } else if (e.key === 'Escape') {
-      setOpenMenuId(null)
-      setSelectedIds(new Set())
-      setFocusedRow(-1)
-      setShowColumnPicker(false)
-      setShowSearchHistory(false)
-      setShowMobileFilters(false)
-    } else if (e.key === '/' && !typing && !e.ctrlKey && !e.metaKey) {
-      e.preventDefault()
-      searchRef.current?.focus()
-    }
-  }
-
   const SortIcon = ({ column }: { column: string }) => {
     if (sort !== column) return <ChevronsUpDown className="h-3 w-3 text-gray-300 ml-1 inline" />
     return order === 'asc'
@@ -622,7 +583,7 @@ export function GroupList({
 
   const startIdx = totalCount === 0 ? 0 : (page - 1) * pageSize + 1
   const endIdx = Math.min(page * pageSize, totalCount)
-  const rowPadding = density === 'compact' ? 'py-1.5' : 'py-3'
+  const rowPadding = 'py-3'
   const sortSelectValue = `${sort}:${order}`
 
   // ---------------------------------------------------------------------------
@@ -642,16 +603,6 @@ export function GroupList({
         <option value="inactive">Inactive</option>
         <option value="suspended">Suspended</option>
         <option value="dissolved">Dissolved</option>
-      </select>
-
-      <select
-        value={branch}
-        onChange={(e) => updateURL({ branch: e.target.value })}
-        className="h-9 rounded-md border border-gray-300 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-        aria-label="Filter by branch"
-      >
-        <option value="all">All Branches</option>
-        {branches.map(b => <option key={b} value={b}>{b}</option>)}
       </select>
 
       <select
@@ -871,7 +822,7 @@ export function GroupList({
           <div className="grid grid-cols-2 gap-2 text-[11px] text-gray-600">
             <div className="flex items-center gap-1 truncate">
               <MapPin className="h-3 w-3 text-gray-400 shrink-0" />
-              <span className="truncate">{group.branch || '—'}{group.area ? ` • ${group.area}` : ''}</span>
+              <span className="truncate">{group.area || '—'}</span>
             </div>
             <div className="flex items-center gap-1 truncate">
               <Calendar className="h-3 w-3 text-gray-400 shrink-0" />
@@ -927,7 +878,7 @@ export function GroupList({
   const colCount = 1 + ALL_COLUMNS.filter(c => visibleColumns.has(c.key)).length + (canManage ? 1 : 0)
 
   return (
-    <div className="space-y-4" onKeyDown={handleKeyDown} tabIndex={-1} ref={rootRef}>
+    <div className="space-y-4">
       {/* Offline indicator */}
       {!isOnline && (
         <div className="flex items-center gap-2 px-4 py-2 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800" role="status">
@@ -1009,7 +960,7 @@ export function GroupList({
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
             <Input
               ref={searchRef}
-              placeholder="Search groups by name or GRP-#... ( / )"
+              placeholder="Search groups by name or GRP-#..."
               value={searchInput}
               onChange={(e) => handleSearch(e.target.value)}
               onFocus={() => recentSearches.length > 0 && setShowSearchHistory(true)}
@@ -1134,16 +1085,6 @@ export function GroupList({
             </div>
           )}
 
-          {/* Density toggle */}
-          <button
-            onClick={() => setDensity(d => d === 'compact' ? 'comfortable' : 'compact')}
-            className="hidden sm:flex p-2 border border-gray-200 rounded-md text-gray-400 hover:text-gray-600"
-            title={`Switch to ${density === 'compact' ? 'comfortable' : 'compact'} density`}
-            aria-label="Toggle row density"
-          >
-            <Rows3 className="h-4 w-4" />
-          </button>
-
           {/* Save current filter */}
           {hasActiveFilter && (
             <Button
@@ -1227,7 +1168,7 @@ export function GroupList({
       )}
 
       {/* Results count announcement */}
-      <div className="text-xs text-gray-500 flex items-center justify-between no-print" aria-live="polite">
+      <div className="text-xs text-gray-500 no-print" aria-live="polite">
         <span>
           Showing <strong>{startIdx}–{endIdx}</strong> of <strong>{totalCount}</strong> groups
           {search && <span className="ml-1 text-blue-600">matching &ldquo;{search}&rdquo;</span>}
@@ -1236,9 +1177,6 @@ export function GroupList({
               <Loader2 className="h-3 w-3 animate-spin" /> updating…
             </span>
           )}
-        </span>
-        <span className="hidden sm:inline text-[11px] text-gray-400">
-          / search &bull; ↑↓ navigate &bull; Enter open &bull; Esc clear
         </span>
       </div>
 
@@ -1295,7 +1233,7 @@ export function GroupList({
                           Status <SortIcon column="status" />
                         </TableHead>
                       )}
-                      {visibleColumns.has('branch') && <TableHead scope="col">Branch / Area</TableHead>}
+                      {visibleColumns.has('branch') && <TableHead scope="col">Area</TableHead>}
                       {visibleColumns.has('meeting') && <TableHead className="hidden lg:table-cell" scope="col">Meeting Day</TableHead>}
                       {visibleColumns.has('leader') && <TableHead className="hidden xl:table-cell" scope="col">Leader</TableHead>}
                       {visibleColumns.has('formed') && (
@@ -1327,9 +1265,8 @@ export function GroupList({
                         </TableCell>
                       </TableRow>
                     ) : (
-                      groups.map((group, idx) => {
+                      groups.map((group) => {
                         const level = capacityLevel(group)
-                        const isFocused = idx === focusedRow
                         const isLeader = group.leader_name
                         return (
                           <TableRow
@@ -1337,11 +1274,10 @@ export function GroupList({
                             className={`
                               ${rowPadding} cursor-pointer transition-colors border-l-[3px]
                               ${level === 'red' ? 'border-l-red-400' : level === 'amber' ? 'border-l-amber-400' : 'border-l-emerald-400'}
-                              ${isFocused ? 'bg-blue-50 ring-1 ring-inset ring-blue-200' : ROW_HEATMAP[level]}
+                              ${ROW_HEATMAP[level]}
                               ${selectedIds.has(group.id) ? '!bg-blue-50/70' : ''}
                             `}
                             onClick={() => router.push(`/groups/${group.id}`)}
-                            onMouseEnter={() => setFocusedRow(idx)}
                           >
                             {canManage && (
                               <TableCell onClick={e => e.stopPropagation()} className="no-print">
@@ -1386,9 +1322,8 @@ export function GroupList({
                               <TableCell className="text-xs text-gray-600">
                                 <div className="flex items-center gap-1">
                                   <MapPin className="h-3 w-3 text-gray-400 shrink-0" />
-                                  <span className="truncate max-w-[120px]">{group.branch || '—'}</span>
+                                  <span className="truncate max-w-[120px]">{group.area || '—'}</span>
                                 </div>
-                                {group.area && <p className="text-[11px] text-gray-400 mt-0.5">{group.area}</p>}
                               </TableCell>
                             )}
                             {visibleColumns.has('meeting') && (

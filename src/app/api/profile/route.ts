@@ -25,7 +25,6 @@ export async function GET() {
         email: user.email,
         fullName: profile?.full_name,
         role: profile?.role,
-        branch: profile?.branch,
         isActive: profile?.is_active,
         createdAt: profile?.created_at,
         updatedAt: profile?.updated_at,
@@ -47,11 +46,11 @@ export async function PATCH(request: Request) {
     }
 
     const body = await request.json()
-    const { fullName, email, branch, currentPassword, newPassword } = body
+    const { fullName, email, newPassword } = body
 
     const adminClient = createAdminClient()
 
-    // 1. If changing password, verify or update via Supabase Auth
+    // 1. If changing password, update via Supabase Auth (self only)
     if (newPassword && newPassword.trim()) {
       if (newPassword.length < 6) {
         return NextResponse.json({ error: 'New password must be at least 6 characters' }, { status: 400 })
@@ -81,17 +80,13 @@ export async function PATCH(request: Request) {
       await adminClient.from('users').update({ email: newEmail }).eq('id', user.id)
     }
 
-    // 3. Update public.users profile (fullName, branch)
+    // 3. Update public.users profile (display name only)
     const profileUpdates: Record<string, any> = {
       updated_at: new Date().toISOString(),
     }
 
     if (fullName !== undefined && fullName.trim()) {
       profileUpdates.full_name = fullName.trim()
-    }
-
-    if (branch !== undefined) {
-      profileUpdates.branch = branch ? branch.trim() : null
     }
 
     const { data: updatedProfile, error: profileErr } = await adminClient
@@ -108,7 +103,6 @@ export async function PATCH(request: Request) {
       user_metadata: {
         full_name: updatedProfile.full_name,
         role: updatedProfile.role,
-        branch: updatedProfile.branch,
       },
     })
 
