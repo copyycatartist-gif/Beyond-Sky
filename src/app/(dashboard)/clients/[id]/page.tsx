@@ -92,18 +92,18 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
       .limit(5),
   ])
 
-  const client = clientRes.data
+  const client = clientRes.data as any
   if (clientRes.error || !client) {
     notFound()
   }
 
-  const groupMemberships = groupMembershipsRes.data
-  const loans = loansRes.data
-  const recentTransactions = transactionsRes.data
-  const smsHistory = smsRes.data
-  const notes = notesRes.data
-  const tasks = tasksRes.data
-  const auditEntries = auditRes.data
+  const groupMemberships = groupMembershipsRes.data as any[] | null
+  const loans = (loansRes.data as any[]) || []
+  const recentTransactions = transactionsRes.data as any[] | null
+  const smsHistory = smsRes.data as any[] | null
+  const notes = notesRes.data as any[] | null
+  const tasks = tasksRes.data as any[] | null
+  const auditEntries = auditRes.data as any[] | null
 
   // Branches for transfer dialog
   const branchesData = branchesRes.data
@@ -122,9 +122,9 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
     ? (gClient as any)
     : null
 
-  const activeLoan = loans?.find((l) => l.status === 'active')
-  const pendingLoan = loans?.find((l) => l.status === 'pending' || l.status === 'approved')
-  const closedLoans = loans?.filter((l) => l.status === 'closed').length || 0
+  const activeLoan = loans?.find((l: any) => l.status === 'active')
+  const pendingLoan = loans?.find((l: any) => l.status === 'pending' || l.status === 'approved')
+  const closedLoans = loans?.filter((l: any) => l.status === 'closed').length || 0
   const totalCycles = loans?.length || 0
   const isArchived = !!(client as any).archived_at
 
