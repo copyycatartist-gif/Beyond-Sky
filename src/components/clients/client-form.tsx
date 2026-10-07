@@ -52,16 +52,12 @@ const clientSchema = z.object({
   religious_leader_phone: ghanaPhoneField('Valid Ghana phone required'),
   guarantor_name: z.string().min(3, 'Required'),
   guarantor_gender: z.enum(['male', 'female']),
-  guarantor_account_number: z.string().optional().or(z.literal('')),
   guarantor_phone: ghanaPhoneField('Valid Ghana phone required'),
   guarantor_national_id: z.string().regex(ghanaIdRegex, 'Format: GHA-#########-#'),
   guarantor_relationship: z.string().min(2, 'Required'),
   guarantor_occupation: z.string().min(2, 'Required'),
   guarantor_employer: z.string().optional().or(z.literal('')),
-  guarantor_dob: z.string().optional().or(z.literal('')),
   guarantor_residential_address: z.string().min(5, 'Required'),
-  guarantor_religion: z.string().optional().or(z.literal('')),
-  guarantor_place_of_worship: z.string().optional().or(z.literal('')),
   branch: z.string().optional().or(z.literal('')),
   area: z.string().min(2, 'Required'),
   data_protection_consent: z.literal(true, { errorMap: () => ({ message: 'Consent is required' }) }),
@@ -122,7 +118,6 @@ export function ClientForm() {
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [duplicateWarning, setDuplicateWarning] = useState<any[] | null>(null)
   const [checkingDuplicate, setCheckingDuplicate] = useState(false)
-  const [guarantorLookup, setGuarantorLookup] = useState<any | null>(null)
   const [showReview, setShowReview] = useState(false)
   const [photoFile, setPhotoFile] = useState<File | null>(null)
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
@@ -160,16 +155,12 @@ export function ClientForm() {
       religious_leader_phone: '',
       guarantor_name: '',
       guarantor_gender: 'male' as const,
-      guarantor_account_number: '',
       guarantor_phone: '',
       guarantor_national_id: '',
       guarantor_relationship: '',
       guarantor_occupation: '',
       guarantor_employer: '',
-      guarantor_dob: '',
       guarantor_residential_address: '',
-      guarantor_religion: 'Christianity',
-      guarantor_place_of_worship: '',
       data_protection_consent: false as any,
     }
   })
@@ -248,26 +239,6 @@ export function ClientForm() {
       return () => clearTimeout(timer)
     }
   }, [currentStep, formData.phone_number, formData.national_id, checkDuplicates])
-
-  const lookupGuarantor = async () => {
-    const accNum = formData.guarantor_account_number
-    if (!accNum || accNum.length < 5) return
-    const supabase = createClient()
-    const { data } = await supabase
-      .from('clients')
-      .select('full_name, phone_number, national_id')
-      .eq('account_number', accNum)
-      .single()
-    if (data) {
-      setGuarantorLookup(data)
-      setFormData(prev => ({
-        ...prev,
-        guarantor_name: prev.guarantor_name || data.full_name,
-        guarantor_phone: prev.guarantor_phone || data.phone_number,
-        guarantor_national_id: prev.guarantor_national_id || data.national_id,
-      }) as any)
-    }
-  }
 
   const STEP_FIELDS: Record<number, string[]> = {
     0: ['area'],
@@ -392,17 +363,17 @@ export function ClientForm() {
           religious_leader_phone: (formData.religious_leader_phone as string)?.replace(/\s/g, '') || null,
           guarantor_name: formData.guarantor_name.trim(),
           guarantor_gender: formData.guarantor_gender,
-          guarantor_account_number: formData.guarantor_account_number?.trim() || null,
+          guarantor_account_number: null,
           guarantor_phone: (formData.guarantor_phone as string).replace(/\s/g, ''),
           guarantor_national_id: formData.guarantor_national_id.trim(),
           guarantor_relationship: formData.guarantor_relationship?.trim() || '',
           guarantor_business: formData.guarantor_occupation?.trim() || 'Self-Employed',
           guarantor_occupation: formData.guarantor_occupation?.trim() || null,
           guarantor_employer: formData.guarantor_employer?.trim() || null,
-          guarantor_dob: formData.guarantor_dob || null,
+          guarantor_dob: null,
           guarantor_residential_address: formData.guarantor_residential_address?.trim() || null,
-          guarantor_religion: formData.guarantor_religion?.trim() || null,
-          guarantor_place_of_worship: formData.guarantor_place_of_worship?.trim() || null,
+          guarantor_religion: null,
+          guarantor_place_of_worship: null,
           data_protection_consent: true,
           consent_date: new Date().toISOString(),
           created_by: user.id,
@@ -739,18 +710,6 @@ export function ClientForm() {
             <CardDescription className="text-indigo-700 text-xs">Complete guarantor profile backing the credit agreement.</CardDescription>
           </CardHeader>
           <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pt-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="guarantor_account_number">Guarantor Account # (lookup)</Label>
-              <div className="flex gap-1">
-                <Input id="guarantor_account_number" name="guarantor_account_number" placeholder="BSM-000045-3" value={formData.guarantor_account_number || ''} onChange={handleChange} />
-                <Button type="button" variant="outline" size="sm" className="h-10 px-2 shrink-0" onClick={lookupGuarantor} title="Lookup existing client">
-                  <Search className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-              {guarantorLookup && (
-                <p className="text-[11px] text-emerald-600">Found: {guarantorLookup.full_name}</p>
-              )}
-            </div>
             <div className="space-y-1.5 sm:col-span-2">
               <Label htmlFor="guarantor_name">Guarantor Full Name *</Label>
               <Input id="guarantor_name" name="guarantor_name" placeholder="Yaw Boateng" value={formData.guarantor_name} onChange={handleChange} required />
@@ -788,22 +747,10 @@ export function ClientForm() {
               <Label htmlFor="guarantor_employer">Employer</Label>
               <Input id="guarantor_employer" name="guarantor_employer" placeholder="Ghana Education Service / Self" value={formData.guarantor_employer || ''} onChange={handleChange} />
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="guarantor_dob">Guarantor DOB</Label>
-              <Input id="guarantor_dob" name="guarantor_dob" type="date" value={formData.guarantor_dob || ''} onChange={handleChange} />
-            </div>
             <div className="space-y-1.5 sm:col-span-2 lg:col-span-3">
               <Label htmlFor="guarantor_residential_address">Guarantor Residence Address *</Label>
               <Input id="guarantor_residential_address" name="guarantor_residential_address" placeholder="Hse No. 44, Near Shell, Achimota" value={formData.guarantor_residential_address || ''} onChange={handleChange} required />
               {errors.guarantor_residential_address && <p className="text-xs text-red-500">{errors.guarantor_residential_address}</p>}
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="guarantor_religion">Guarantor Religion</Label>
-              <Input id="guarantor_religion" name="guarantor_religion" placeholder="Christianity" value={formData.guarantor_religion || ''} onChange={handleChange} />
-            </div>
-            <div className="space-y-1.5 sm:col-span-2">
-              <Label htmlFor="guarantor_place_of_worship">Guarantor Place of Worship</Label>
-              <Input id="guarantor_place_of_worship" name="guarantor_place_of_worship" placeholder="ICGC Christ Temple" value={formData.guarantor_place_of_worship || ''} onChange={handleChange} />
             </div>
           </CardContent>
         </Card>
