@@ -269,17 +269,37 @@ export function ClientForm() {
     }
   }
 
-  const validateStep = (step: number): boolean => {
-    const stepFields: Record<number, string[]> = {
-      0: ['area'],
-      1: ['full_name', 'phone_number', 'national_id', 'spouse_or_father_name', 'marital_status'],
-      2: ['present_address', 'permanent_address', 'business_type', 'market_location', 'daily_business_income'],
-      3: ['religion', 'place_of_worship', 'religious_leader_name', 'religious_leader_phone'],
-      4: ['guarantor_name', 'guarantor_phone', 'guarantor_national_id', 'guarantor_relationship', 'guarantor_occupation', 'guarantor_residential_address'],
-      5: ['data_protection_consent'],
-    }
+  const STEP_FIELDS: Record<number, string[]> = {
+    0: ['area'],
+    1: ['full_name', 'phone_number', 'national_id', 'spouse_or_father_name', 'marital_status'],
+    2: ['present_address', 'permanent_address', 'business_type', 'market_location', 'daily_business_income'],
+    3: ['religion', 'place_of_worship', 'religious_leader_name', 'religious_leader_phone'],
+    4: [
+      'guarantor_name',
+      'guarantor_gender',
+      'guarantor_phone',
+      'guarantor_national_id',
+      'guarantor_relationship',
+      'guarantor_occupation',
+      'guarantor_residential_address',
+    ],
+    5: ['data_protection_consent'],
+  }
 
-    const fields = stepFields[step] || []
+  const stepForField = (field: string): number => {
+    for (const [step, fields] of Object.entries(STEP_FIELDS)) {
+      if (fields.includes(field)) return Number(step)
+    }
+    return 0
+  }
+
+  const earliestErrorStep = (fieldErrors: Record<string, string>): number => {
+    const steps = Object.keys(fieldErrors).map(stepForField)
+    return steps.length > 0 ? Math.min(...steps) : 0
+  }
+
+  const validateStep = (step: number): boolean => {
+    const fields = STEP_FIELDS[step] || []
     const partialSchema = clientSchema.pick(Object.fromEntries(fields.map(f => [f, true])) as any)
     const result = partialSchema.safeParse(formData)
 
@@ -292,6 +312,12 @@ export function ClientForm() {
       setErrors(prev => ({ ...prev, ...newErrors }))
       return false
     }
+    // Clear errors for fields on this step when it passes
+    setErrors(prev => {
+      const next = { ...prev }
+      fields.forEach(f => { delete next[f] })
+      return next
+    })
     return true
   }
 
@@ -308,6 +334,12 @@ export function ClientForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
+    // Enter on earlier steps must advance, not run full submit (consent lives on Review)
+    if (currentStep < STEPS.length - 1) {
+      nextStep()
+      return
+    }
+
     const result = clientSchema.safeParse(formData)
     if (!result.success) {
       const newErrors: Record<string, string> = {}
@@ -316,8 +348,7 @@ export function ClientForm() {
         if (!newErrors[field]) newErrors[field] = issue.message
       })
       setErrors(newErrors)
-      const firstErrorStep = Object.keys(newErrors).length > 0 ? 1 : 0
-      setCurrentStep(firstErrorStep)
+      setCurrentStep(earliestErrorStep(newErrors))
       toast({ title: 'Validation errors', description: 'Please fix the highlighted fields.', variant: 'destructive' })
       return
     }
@@ -876,7 +907,17 @@ export function ClientForm() {
                   type="checkbox"
                   name="data_protection_consent"
                   checked={formData.data_protection_consent === true}
-                  onChange={(e) => setFormData(prev => ({ ...prev, data_protection_consent: e.target.checked }) as any)}
+                  onChange={(e) => {
+                    const checked = e.target.checked
+                    setFormData(prev => ({ ...prev, data_protection_consent: checked }) as any)
+                    if (checked) {
+                      setErrors(prev => {
+                        const next = { ...prev }
+                        delete next.data_protection_consent
+                        return next
+                      })
+                    }
+                  }}
                   className="mt-0.5 rounded border-gray-300"
                 />
                 <span className="text-xs text-gray-700">
