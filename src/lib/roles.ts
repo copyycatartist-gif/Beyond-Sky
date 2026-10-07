@@ -8,6 +8,11 @@ export function canAdministerStaff(role: string | null | undefined): boolean {
   return role === 'accountant_admin' || role === 'manager'
 }
 
+/** Hard-delete clients — managers and super admins only. */
+export function canDeleteClients(role: string | null | undefined): boolean {
+  return role === 'accountant_admin' || role === 'manager'
+}
+
 export function canSeeSuperAdmin(role: string | null | undefined): boolean {
   return role === SUPER_ADMIN_ROLE
 }

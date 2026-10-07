@@ -5,11 +5,14 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
-  ShieldAlert, Archive, X, Check, Loader2, Undo2
+  ShieldAlert, Archive, X, Check, Loader2, Undo2, Trash2
 } from 'lucide-react'
+import { canDeleteClients } from '@/lib/roles'
+import { useToast } from '@/components/ui/use-toast'
 
 interface ClientActionsProps {
   clientId: string
+  clientName?: string
   isWatchlisted: boolean
   watchlistReason: string | null
   isArchived: boolean
@@ -19,15 +22,24 @@ interface ClientActionsProps {
 }
 
 export function ClientActions({
-  clientId, isWatchlisted, watchlistReason, isArchived, userRole
+  clientId,
+  clientName,
+  isWatchlisted,
+  watchlistReason,
+  isArchived,
+  userRole,
 }: ClientActionsProps) {
   const router = useRouter()
+  const { toast } = useToast()
   const [loading, setLoading] = useState<string | null>(null)
   const [showWatchlistDialog, setShowWatchlistDialog] = useState(false)
   const [showArchiveConfirm, setShowArchiveConfirm] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [deleteConfirmText, setDeleteConfirmText] = useState('')
   const [watchlistReasonInput, setWatchlistReasonInput] = useState('')
 
   const isManager = ['manager', 'supervisor', 'accountant_admin'].includes(userRole)
+  const canDelete = canDeleteClients(userRole)
 
   if (!isManager) return null
 
@@ -65,6 +77,40 @@ export function ClientActions({
     }
   }
 
+  const handleDelete = async () => {
+    setLoading('delete')
+    try {
+      const res = await fetch(`/api/clients/${clientId}`, { method: 'DELETE' })
+      const data = await res.json().catch(() => null)
+      if (!res.ok) {
+        toast({
+          title: 'Cannot delete client',
+          description: data?.error || 'Delete failed.',
+          variant: 'destructive',
+        })
+        return
+      }
+      toast({
+        title: 'Client deleted',
+        description: data?.message || 'Client was permanently removed.',
+        variant: 'success',
+      })
+      setShowDeleteConfirm(false)
+      router.push('/clients')
+      router.refresh()
+    } catch (err: any) {
+      toast({
+        title: 'Cannot delete client',
+        description: err.message || 'Network error',
+        variant: 'destructive',
+      })
+    } finally {
+      setLoading(null)
+    }
+  }
+
+  const deleteLabel = clientName?.trim() || 'DELETE'
+
   return (
     <>
       <div className="flex items-center gap-2 flex-wrap">
@@ -91,6 +137,23 @@ export function ClientActions({
           {loading === 'archive' ? <Loader2 className="h-3 w-3 animate-spin" /> : isArchived ? <Undo2 className="h-3 w-3" /> : <Archive className="h-3 w-3" />}
           {isArchived ? 'Restore' : 'Archive'}
         </Button>
+
+        {canDelete && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 text-xs gap-1.5 text-red-700 border-red-200 hover:bg-red-50 hover:border-red-300"
+            onClick={() => {
+              setDeleteConfirmText('')
+              setShowDeleteConfirm(true)
+            }}
+            disabled={loading === 'delete'}
+            title="Permanently delete client"
+          >
+            {loading === 'delete' ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
+            Delete
+          </Button>
+        )}
       </div>
 
       {showWatchlistDialog && (
@@ -168,6 +231,55 @@ export function ClientActions({
               >
                 {loading === 'archive' ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
                 {isArchived ? 'Restore' : 'Archive'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDeleteConfirm && (
+        <div className="focus-trap-overlay" onClick={() => setShowDeleteConfirm(false)}>
+          <div
+            role="dialog"
+            aria-labelledby="delete-client-title"
+            className="bg-white rounded-xl shadow-xl p-5 w-full max-w-sm mx-4 space-y-4"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <h3 id="delete-client-title" className="text-sm font-bold text-red-800 flex items-center gap-2">
+                <Trash2 className="h-4 w-4" />
+                Delete Client Permanently
+              </h3>
+              <button onClick={() => setShowDeleteConfirm(false)} className="text-gray-400 hover:text-gray-600">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <p className="text-xs text-gray-600">
+              This permanently removes <strong>{clientName || 'this client'}</strong> and related notes/tasks.
+              Clients with loan history cannot be deleted — archive them instead.
+            </p>
+            <div>
+              <label className="text-xs font-medium text-gray-600 block mb-1">
+                Type <span className="font-mono">{deleteLabel}</span> to confirm
+              </label>
+              <Input
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                placeholder={deleteLabel}
+                className="text-sm"
+                autoFocus
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="ghost" size="sm" onClick={() => setShowDeleteConfirm(false)}>Cancel</Button>
+              <Button
+                size="sm"
+                className="bg-red-600 hover:bg-red-700 text-white gap-1.5"
+                onClick={handleDelete}
+                disabled={deleteConfirmText !== deleteLabel || loading === 'delete'}
+              >
+                {loading === 'delete' ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
+                Delete Forever
               </Button>
             </div>
           </div>

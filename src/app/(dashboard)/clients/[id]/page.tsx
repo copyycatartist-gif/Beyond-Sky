@@ -5,7 +5,7 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import {
   ArrowLeft, Phone, MapPin, Briefcase, UserCheck, Shield, FileText, PlusCircle,
-  CreditCard, Building2, User, Church, HeartHandshake, Edit3, Printer,
+  CreditCard, Building2, User, Church, HeartHandshake,
   MessageSquare, Clock, AlertTriangle, Star, Crown, Zap, ShieldAlert,
   TrendingUp, Calendar, ExternalLink, Eye, Activity, StickyNote, ChevronRight,
   Archive, Camera
@@ -19,6 +19,7 @@ import { ClientNotes } from '@/components/clients/client-notes'
 import { ClientEditDialog } from '@/components/clients/client-edit-dialog'
 import { ClientTasks } from '@/components/clients/client-tasks'
 import { ClientActions } from '@/components/clients/client-actions'
+import { ClientPrintButton } from '@/components/clients/client-print-button'
 import { PhotoUpload } from '@/components/clients/photo-upload'
 import { AuditDiffViewer } from '@/components/clients/audit-diff-viewer'
 
@@ -73,7 +74,7 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
       .limit(5),
     supabase
       .from('client_notes')
-      .select('*, users:created_by(full_name, role)')
+      .select('*')
       .eq('client_id', params.id)
       .order('created_at', { ascending: false })
       .limit(10),
@@ -102,12 +103,7 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
   const loans = (loansRes.data as any[]) || []
   const recentTransactions = transactionsRes.data as any[] | null
   const smsHistory = smsRes.data as any[] | null
-  const notes = ((notesRes.data as any[]) || []).map((note) => {
-    if (!canSeeSuperAdmin(profile?.role) && note?.users?.role === 'accountant_admin') {
-      return { ...note, users: { full_name: 'Staff' } }
-    }
-    return note
-  })
+  const notesRaw = (notesRes.data as any[]) || []
   const tasks = tasksRes.data as any[] | null
   const auditEntries = auditRes.data as any[] | null
 
@@ -115,18 +111,43 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
   const branchesData = branchesRes.data
   const allBranches = Array.from(new Set((branchesData || []).map((b: any) => b.branch).filter(Boolean))) as string[]
 
-  // Wave 2: check if guarantor is also a registered client (cross-link, depends on client row)
-  const { data: gClient } = (client as any).guarantor_account_number
-    ? await supabase
-        .from('clients')
-        .select('id, full_name, account_number')
-        .eq('account_number', (client as any).guarantor_account_number)
-        .neq('id', params.id)
-        .maybeSingle()
-    : { data: null as any }
+  // Wave 2: guarantor cross-link + note author names (created_by → auth.users, resolve via public.users)
+  const noteAuthorIds = Array.from(
+    new Set(notesRaw.map((n: any) => n.created_by).filter(Boolean))
+  ) as string[]
+
+  const [gClientRes, noteAuthorsRes] = await Promise.all([
+    (client as any).guarantor_account_number
+      ? supabase
+          .from('clients')
+          .select('id, full_name, account_number')
+          .eq('account_number', (client as any).guarantor_account_number)
+          .neq('id', params.id)
+          .maybeSingle()
+      : Promise.resolve({ data: null as any }),
+    noteAuthorIds.length > 0
+      ? supabase.from('users').select('id, full_name, role').in('id', noteAuthorIds)
+      : Promise.resolve({ data: [] as any[] }),
+  ])
+
+  const gClient = gClientRes.data
   const guarantorClient: { id: string; full_name: string; account_number: string } | null = gClient
     ? (gClient as any)
     : null
+
+  const authorMap: Record<string, { full_name: string; role: string }> = {}
+  ;((noteAuthorsRes.data as any[]) || []).forEach((u: any) => {
+    authorMap[u.id] = { full_name: u.full_name, role: u.role }
+  })
+
+  const notes = notesRaw.map((note: any) => {
+    const author = note.created_by ? authorMap[note.created_by] : null
+    if (!author) return { ...note, users: null }
+    if (!canSeeSuperAdmin(profile?.role) && author.role === 'accountant_admin') {
+      return { ...note, users: { full_name: 'Staff' } }
+    }
+    return { ...note, users: { full_name: author.full_name } }
+  })
 
   const activeLoan = loans?.find((l: any) => l.status === 'active')
   const pendingLoan = loans?.find((l: any) => l.status === 'pending' || l.status === 'approved')
@@ -205,10 +226,7 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
           <div className="flex items-center gap-2 flex-wrap">
             <ClientEditDialog client={client as any} />
 
-            <Button variant="outline" size="sm" className="h-9 gap-1.5 no-print" onClick={() => window.print()}>
-              <Printer className="h-3.5 w-3.5" />
-              Print
-            </Button>
+            <ClientPrintButton />
 
             <Link href={`/sms?clientId=${client.id}`}>
               <Button variant="outline" size="sm" className="h-9 gap-1.5">
@@ -245,6 +263,7 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
           <div className="no-print">
             <ClientActions
               clientId={params.id}
+              clientName={client.full_name}
               isWatchlisted={!!(client as any).is_watchlisted}
               watchlistReason={(client as any).watchlist_reason}
               isArchived={isArchived}
