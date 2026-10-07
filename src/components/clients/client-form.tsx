@@ -19,9 +19,21 @@ import type { MaritalStatus } from '@/lib/supabase/database.types'
 const ghanaPhoneRegex = /^(0[235]\d{8}|\+233[235]\d{8})$/
 const ghanaIdRegex = /^GHA-\d{9}-\d$/i
 
+/** Strip spaces/dashes so formatted input like "024 412 3456" still validates. */
+function normalizeGhanaPhone(value: string): string {
+  const trimmed = value.trim()
+  if (trimmed.startsWith('+')) {
+    return `+${trimmed.slice(1).replace(/\D/g, '')}`
+  }
+  return trimmed.replace(/\D/g, '')
+}
+
+const ghanaPhoneField = (message: string) =>
+  z.string().refine((val) => ghanaPhoneRegex.test(normalizeGhanaPhone(val)), message)
+
 const clientSchema = z.object({
   full_name: z.string().min(3, 'Full name must be at least 3 characters'),
-  phone_number: z.string().regex(ghanaPhoneRegex, 'Enter a valid Ghana phone (e.g. 0241234567)'),
+  phone_number: ghanaPhoneField('Enter a valid Ghana phone (e.g. 0241234567)'),
   national_id: z.string().regex(ghanaIdRegex, 'Format: GHA-#########-#'),
   spouse_or_father_name: z.string().min(2, 'Required'),
   age: z.coerce.number().min(18, 'Must be 18+').max(90, 'Must be under 90').optional().or(z.literal('')),
@@ -37,11 +49,11 @@ const clientSchema = z.object({
   religion: z.string().min(2, 'Required'),
   place_of_worship: z.string().min(2, 'Required'),
   religious_leader_name: z.string().min(2, 'Required'),
-  religious_leader_phone: z.string().regex(ghanaPhoneRegex, 'Valid Ghana phone required'),
+  religious_leader_phone: ghanaPhoneField('Valid Ghana phone required'),
   guarantor_name: z.string().min(3, 'Required'),
   guarantor_gender: z.enum(['male', 'female']),
   guarantor_account_number: z.string().optional().or(z.literal('')),
-  guarantor_phone: z.string().regex(ghanaPhoneRegex, 'Valid Ghana phone required'),
+  guarantor_phone: ghanaPhoneField('Valid Ghana phone required'),
   guarantor_national_id: z.string().regex(ghanaIdRegex, 'Format: GHA-#########-#'),
   guarantor_relationship: z.string().min(2, 'Required'),
   guarantor_occupation: z.string().min(2, 'Required'),

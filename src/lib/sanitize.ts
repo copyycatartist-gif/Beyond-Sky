@@ -70,7 +70,11 @@ export function sanitizeObject(obj: Record<string, any>): Record<string, any> {
  */
 export function isValidGhanaPhone(phone: string): boolean {
   if (typeof phone !== 'string') return false
-  return GHANA_PHONE_REGEX.test(phone.trim())
+  const trimmed = phone.trim()
+  const normalized = trimmed.startsWith('+')
+    ? `+${trimmed.slice(1).replace(/\D/g, '')}`
+    : trimmed.replace(/\D/g, '')
+  return GHANA_PHONE_REGEX.test(normalized)
 }
 
 /**
