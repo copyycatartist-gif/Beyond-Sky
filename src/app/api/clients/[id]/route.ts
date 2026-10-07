@@ -62,8 +62,36 @@ export async function DELETE(
     )
   }
 
-  // Clear optional FKs that may not cascade (leader refs, etc.)
-  await admin.from('groups').update({ leader_id: null }).eq('leader_id', clientId)
+  // Clear / remove FKs that do not ON DELETE CASCADE
+  const cleanupSteps: Array<{ label: string; run: () => Promise<{ error: { message: string } | null }> }> = [
+    {
+      label: 'groups.leader_id',
+      run: () => admin.from('groups').update({ leader_id: null }).eq('leader_id', clientId),
+    },
+    {
+      label: 'sms_log',
+      run: () => admin.from('sms_log').delete().eq('client_id', clientId),
+    },
+    {
+      label: 'group_members',
+      run: () => admin.from('group_members').delete().eq('client_id', clientId),
+    },
+    {
+      label: 'transactions',
+      run: () => admin.from('transactions').delete().eq('client_id', clientId),
+    },
+  ]
+
+  for (const step of cleanupSteps) {
+    const { error } = await step.run()
+    if (error) {
+      console.error(`[DELETE /api/clients/[id]] cleanup ${step.label}:`, error.message)
+      return NextResponse.json(
+        { error: `Failed clearing related ${step.label}: ${error.message}` },
+        { status: 500 }
+      )
+    }
+  }
 
   const { error: deleteError } = await admin.from('clients').delete().eq('id', clientId)
   if (deleteError) {
