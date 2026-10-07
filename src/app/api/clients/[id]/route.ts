@@ -69,8 +69,9 @@ export async function DELETE(
       run: () => admin.from('groups').update({ leader_id: null }).eq('leader_id', clientId),
     },
     {
+      // sms_log is append-only (no DELETE); detach the FK instead
       label: 'sms_log',
-      run: () => admin.from('sms_log').delete().eq('client_id', clientId),
+      run: () => admin.from('sms_log').update({ client_id: null }).eq('client_id', clientId),
     },
     {
       label: 'group_members',
