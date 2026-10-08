@@ -23,6 +23,7 @@ interface ClientData {
   business_address: string | null
   business_type: string
   market_location: string
+  monthly_income?: number | null
   religion: string | null
   place_of_worship: string | null
   religious_leader_name: string | null
@@ -61,6 +62,7 @@ export function ClientEditDialog({ client, userRole }: { client: ClientData; use
     business_address: client.business_address || '',
     business_type: client.business_type,
     market_location: client.market_location,
+    monthly_income: client.monthly_income != null ? String(client.monthly_income) : '',
     religion: client.religion || '',
     place_of_worship: client.place_of_worship || '',
     religious_leader_name: client.religious_leader_name || '',
@@ -93,6 +95,12 @@ export function ClientEditDialog({ client, userRole }: { client: ClientData; use
 
   const handleSave = async () => {
     setSaving(true)
+    const income = Number(form.monthly_income)
+    if (!Number.isFinite(income) || income <= 0) {
+      toast({ title: 'Monthly income is required', description: 'Enter the client’s monthly income before saving.', variant: 'destructive' })
+      setSaving(false)
+      return
+    }
     try {
       const res = await fetch('/api/clients/update', {
         method: 'PATCH',
@@ -101,6 +109,7 @@ export function ClientEditDialog({ client, userRole }: { client: ClientData; use
           id: client.id,
           ...form,
           age: form.age ? parseInt(form.age) : null,
+          monthly_income: income,
           guarantor_business: form.guarantor_occupation,
         }),
       })
@@ -200,6 +209,10 @@ export function ClientEditDialog({ client, userRole }: { client: ClientData; use
               <div className="space-y-1">
                 <Label htmlFor="edit-market">Market Location *</Label>
                 <Input id="edit-market" name="market_location" value={form.market_location} onChange={handleChange} />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="edit-income">Monthly Income (GHS) *</Label>
+                <Input id="edit-income" name="monthly_income" type="number" min="1" step="0.01" value={form.monthly_income} onChange={handleChange} />
               </div>
               <div className="space-y-1 sm:col-span-2">
                 <Label htmlFor="edit-residential">Residential Address</Label>

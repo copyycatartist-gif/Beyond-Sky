@@ -1,32 +1,57 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 
+function accraParts(input: Date) {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Africa/Accra',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(input)
+  const pick = (type: string) => Number(parts.find((part) => part.type === type)?.value)
+  return { year: pick('year'), month: pick('month'), day: pick('day') }
+}
+
+/** Monday of the Ghana calendar week that contains this date, as YYYY-MM-DD. */
+function accraMonday(year: number, month: number, day: number) {
+  const utc = new Date(Date.UTC(year, month - 1, day))
+  const weekday = utc.getUTCDay()
+  const shift = weekday === 0 ? -6 : 1 - weekday
+  utc.setUTCDate(utc.getUTCDate() + shift)
+  return utc.toISOString().slice(0, 10)
+}
+
 export function disbursementCohort(disbursedOn: Date, frequency: 'weekly' | 'monthly') {
+  const when = Number.isNaN(disbursedOn.getTime()) ? new Date() : disbursedOn
+  const { year, month, day } = accraParts(when)
+
   if (frequency === 'monthly') {
-    const year = disbursedOn.getFullYear()
-    const month = disbursedOn.getMonth()
-    const label = disbursedOn.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
+    const label = new Date(Date.UTC(year, month - 1, 1)).toLocaleDateString('en-GB', {
+      month: 'long',
+      year: 'numeric',
+      timeZone: 'UTC',
+    })
     return {
-      key: `month:${year}-${String(month + 1).padStart(2, '0')}`,
+      key: `month:${year}-${String(month).padStart(2, '0')}`,
       name: `Disbursement ${label}`,
       meetingDay: null as string | null,
     }
   }
 
-  const date = new Date(disbursedOn)
-  const day = date.getDay() || 7
-  date.setDate(date.getDate() - day + 1)
-  const year = date.getFullYear()
-  const start = new Date(year, 0, 1)
-  const week = Math.ceil(((date.getTime() - start.getTime()) / 86400000 + start.getDay() + 1) / 7)
-  const label = date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+  const monday = accraMonday(year, month, day)
+  const label = new Date(`${monday}T12:00:00Z`).toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'UTC',
+  })
   return {
-    key: `week:${year}-W${String(week).padStart(2, '0')}`,
+    key: `week:${monday}`,
     name: `Disbursement week of ${label}`,
     meetingDay: 'Monday',
   }
 }
 
-/** Find or create the disbursement cohort and add the client. */
+/** Find or create the disbursement cohort and add the client. Throws if it cannot. */
 export async function assignDisbursementGroup(
   admin: SupabaseClient,
   input: {
@@ -36,18 +61,22 @@ export async function assignDisbursementGroup(
     disbursedOn: string
     actorId: string
   }
-) {
-  const when = new Date(input.disbursedOn)
+): Promise<{ groupId: string; addedMember: boolean }> {
+  const when = new Date(`${input.disbursedOn.slice(0, 10)}T12:00:00Z`)
   const cohort = disbursementCohort(
     Number.isNaN(when.getTime()) ? new Date() : when,
     input.frequency
   )
 
-  const { data: existing } = await admin
+  const { data: existing, error: lookupError } = await admin
     .from('groups')
     .select('id')
     .eq('cohort_key', cohort.key)
     .maybeSingle()
+
+  if (lookupError) {
+    throw new Error(lookupError.message || 'Could not look up the disbursement group')
+  }
 
   let groupId = (existing as { id: string } | null)?.id
 
@@ -66,14 +95,23 @@ export async function assignDisbursementGroup(
       } as never)
       .select('id')
       .single()
+
     if (error || !created) {
-      console.error('[disbursement cohort]', error?.message)
-      return
+      const raced = await admin
+        .from('groups')
+        .select('id')
+        .eq('cohort_key', cohort.key)
+        .maybeSingle()
+      groupId = (raced.data as { id: string } | null)?.id
+      if (!groupId) {
+        throw new Error(error?.message || 'Could not create the disbursement group')
+      }
+    } else {
+      groupId = (created as { id: string }).id
     }
-    groupId = (created as { id: string }).id
   }
 
-  const { data: member } = await admin
+  const { data: member, error: memberLookupError } = await admin
     .from('group_members')
     .select('id')
     .eq('group_id', groupId)
@@ -81,18 +119,43 @@ export async function assignDisbursementGroup(
     .is('date_left', null)
     .maybeSingle()
 
-  if (member) return
+  if (memberLookupError) {
+    throw new Error(memberLookupError.message || 'Could not check group membership')
+  }
+
+  if (member) {
+    const { error: linkError } = await admin
+      .from('loans')
+      .update({ group_id: groupId } as never)
+      .eq('id', input.loanId)
+    if (linkError) throw new Error(linkError.message || 'Could not attach the loan to the group')
+    return { groupId, addedMember: false }
+  }
 
   const { error: memberError } = await admin.from('group_members').insert({
     group_id: groupId,
     client_id: input.clientId,
-    date_joined: input.disbursedOn,
+    date_joined: input.disbursedOn.slice(0, 10),
     role: 'member',
   } as never)
 
   if (memberError) {
-    console.error('[disbursement cohort member]', memberError.message)
+    throw new Error(memberError.message || 'Could not add the client to the disbursement group')
   }
 
-  await admin.from('loans').update({ group_id: groupId } as never).eq('id', input.loanId)
+  const { error: linkError } = await admin
+    .from('loans')
+    .update({ group_id: groupId } as never)
+    .eq('id', input.loanId)
+  if (linkError) {
+    await admin
+      .from('group_members')
+      .delete()
+      .eq('group_id', groupId)
+      .eq('client_id', input.clientId)
+      .is('date_left', null)
+    throw new Error(linkError.message || 'Could not attach the loan to the group')
+  }
+
+  return { groupId, addedMember: true }
 }

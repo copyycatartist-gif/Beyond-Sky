@@ -49,8 +49,8 @@ const MIGRATION_CONFIGS: Record<MigrationType, MigrationTabConfig> = {
     icon: Users,
     title: 'Client KYC Directory Onboarding',
     templateFileName: 'beyond_sky_clients_onboarding_template.csv',
-    templateHeaders: 'area,fullName,phoneNumber,nationalId,spouseOrFatherName,age,dateOfBirth,maritalStatus,presentAddress,permanentAddress,businessAddress,businessType,marketLocation,religion,placeOfWorship,pastorOrImamName,pastorOrImamPhone,guarantorName,guarantorGender,guarantorPhone,guarantorOccupation,guarantorEmployer,guarantorResidentialAddress\n',
-    sampleRow: 'Accra Central,Ama Osei Mensah,0244123456,GHA-712345678-1,Kofi Mensah,36,1988-04-12,married,Hse #44 Makola Lane,Keta Volta Region,Stall #12 Market Circle,Cloth Trader,Makola Market,Christianity,Action Chapel Makola,Rev. Emmanuel Addo,0209876543,Kwame Osei Mensah,male,0201239876,Transport Operator,Metro Mass Transit,Hse #44 Makola Lane\n',
+    templateHeaders: 'area,fullName,phoneNumber,nationalId,spouseOrFatherName,age,dateOfBirth,maritalStatus,presentAddress,permanentAddress,businessAddress,businessType,marketLocation,monthlyIncome,religion,placeOfWorship,pastorOrImamName,pastorOrImamPhone,guarantorName,guarantorGender,guarantorPhone,guarantorOccupation,guarantorEmployer,guarantorResidentialAddress\n',
+    sampleRow: 'Accra Central,Ama Osei Mensah,0244123456,GHA-712345678-1,Kofi Mensah,36,1988-04-12,married,Hse #44 Makola Lane,Keta Volta Region,Stall #12 Market Circle,Cloth Trader,Makola Market,2400,Christianity,Action Chapel Makola,Rev. Emmanuel Addo,0209876543,Kwame Osei Mensah,male,0201239876,Transport Operator,Metro Mass Transit,Hse #44 Makola Lane\n',
   },
   transactions: {
     id: 'transactions',

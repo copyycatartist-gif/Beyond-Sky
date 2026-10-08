@@ -54,6 +54,7 @@ export interface GroupMemberLoanSchedule {
   outstandingBalance: number
   cumulativePaid: number
   loanStatus?: string
+  paymentFrequency?: 'weekly' | 'monthly'
   installments: Array<{
     week: number
     dueDate?: string
@@ -77,8 +78,11 @@ interface GroupCollectionMatrixProps {
   lockedWeeks?: number[]
   /** Name of the officer collecting, used on receipts and signature blocks */
   officerName?: string
-  /** Penalty rate per week overdue, as a percentage. Defaults to 2% */
+  /** Penalty rate per period overdue, as a percentage. Defaults to 2% */
   penaltyRatePercent?: number
+  /** 13 for a weekly loan, up to 6 for a monthly loan */
+  periodCount?: number
+  periodKind?: 'week' | 'month'
 }
 
 interface PendingCollection {
@@ -92,6 +96,7 @@ interface PendingCollection {
     groupId: string
     groupName: string
     weekNumber: number
+    idempotencyKey?: string
   }
 }
 
@@ -107,7 +112,6 @@ interface ReceiptData {
 
 type InstallmentStatus = GroupMemberLoanSchedule['installments'][number]['status']
 
-const TOTAL_WEEKS = 13
 const PENDING_KEY_PREFIX = 'beyondsky_pending_collections_'
 
 function storageKey(groupId: string) {
@@ -133,7 +137,7 @@ function writePending(groupId: string, items: PendingCollection[]) {
   }
 }
 
-function weeksOverdue(dueDate?: string): number {
+function weeksOverdue(dueDate: string | undefined, spanDays: number): number {
   if (!dueDate) return 0
   const due = new Date(dueDate)
   if (isNaN(due.getTime())) return 0
@@ -142,7 +146,7 @@ function weeksOverdue(dueDate?: string): number {
   due.setHours(0, 0, 0, 0)
   const diffDays = Math.floor((today.getTime() - due.getTime()) / (1000 * 60 * 60 * 24))
   if (diffDays <= 0) return 0
-  return Math.max(1, Math.floor(diffDays / 7))
+  return Math.max(1, Math.floor(diffDays / spanDays))
 }
 
 /** Exact days past due (0 when not overdue) — used for the "Nd late" aging badge */
@@ -196,7 +200,13 @@ export function GroupCollectionMatrix({
   lockedWeeks = [],
   officerName = 'Field Officer',
   penaltyRatePercent = 2,
+  periodCount = 13,
+  periodKind = 'week',
 }: GroupCollectionMatrixProps) {
+  const TOTAL_WEEKS = periodCount
+  const periodTag = periodKind === 'month' ? 'MO' : 'WK'
+  const periodWord = periodKind === 'month' ? 'Month' : 'Week'
+  const overdueSpan = periodKind === 'month' ? 30 : 7
   const router = useRouter()
   const { toast } = useToast()
 
@@ -260,6 +270,7 @@ export function GroupCollectionMatrix({
   const [pending, setPending] = useState<PendingCollection[]>([])
   const [syncing, setSyncing] = useState(false)
   const syncingRef = useRef(false)
+  const batchKeyRef = useRef(typeof crypto !== 'undefined' ? crypto.randomUUID() : String(Date.now()))
 
   // ---------------------------------------------------------------
   // Derived: penalties, totals, current week
@@ -269,7 +280,7 @@ export function GroupCollectionMatrix({
       if (penaltyRate <= 0) return 0
       let penalty = 0
       for (const inst of m.installments) {
-        const wOver = inst.status === 'overdue' ? Math.max(1, weeksOverdue(inst.dueDate)) : 0
+        const wOver = inst.status === 'overdue' ? Math.max(1, weeksOverdue(inst.dueDate, overdueSpan)) : 0
         if (wOver <= 0) continue
         const unpaid = Math.max(0, inst.expectedAmount - inst.paidAmount)
         penalty += unpaid * (penaltyRate / 100) * wOver
@@ -703,6 +714,7 @@ export function GroupCollectionMatrix({
       groupId,
       groupName,
       weekNumber: selectedWeek,
+      idempotencyKey: batchKeyRef.current,
     }
 
     const totalAmount = entries.reduce((acc, entry) => acc + entry.amount, 0)
@@ -718,6 +730,7 @@ export function GroupCollectionMatrix({
       const nextPending = [...readPending(groupId), item]
       writePending(groupId, nextPending)
       setPending(nextPending)
+      batchKeyRef.current = crypto.randomUUID()
       toast({
         title: 'Saved offline',
         description: `Week ${selectedWeek} collection of ${formatCurrency(totalAmount)} queued. It will sync automatically when you reconnect.`,
@@ -735,6 +748,7 @@ export function GroupCollectionMatrix({
       })
 
       const data = await res.json()
+      batchKeyRef.current = crypto.randomUUID()
       if (!res.ok) throw new Error(data.error || 'Failed to record batch collection')
 
       toast({
@@ -913,8 +927,8 @@ export function GroupCollectionMatrix({
       'Principal',
       'Total Repayable',
       'Weekly Installment',
-      ...Array.from({ length: TOTAL_WEEKS }, (_, i) => `WK${i + 1} Paid`),
-      ...Array.from({ length: TOTAL_WEEKS }, (_, i) => `WK${i + 1} Expected`),
+      ...Array.from({ length: TOTAL_WEEKS }, (_, i) => `${periodTag}${i + 1} Paid`),
+      ...Array.from({ length: TOTAL_WEEKS }, (_, i) => `${periodTag}${i + 1} Expected`),
       'Penalty',
       'Cumulative Paid',
       'Outstanding Balance',
@@ -1004,7 +1018,7 @@ export function GroupCollectionMatrix({
     const remaining = Math.max(0, expected - paid)
     const status = inst?.status
     const locked = lockedWeeks.includes(weekNum)
-    const wOver = status === 'overdue' ? Math.max(1, weeksOverdue(inst?.dueDate)) : 0
+    const wOver = status === 'overdue' ? Math.max(1, weeksOverdue(inst?.dueDate, overdueSpan)) : 0
     const flashKey = `${m.clientId}-${weekNum}`
     const isZeroOverdue = status === 'overdue' && paid <= 0
 
@@ -1096,7 +1110,7 @@ export function GroupCollectionMatrix({
                   const log = methodLog[m.clientId]?.[w]
                   return (
                     <tr key={w} className="hover:bg-gray-50">
-                      <td className="p-1.5 font-sans font-bold text-gray-700">WK {w}</td>
+                      <td className="p-1.5 font-sans font-bold text-gray-700">{periodTag} {w}</td>
                       <td className="p-1.5 font-sans text-gray-600">
                         {inst?.dueDate ? formatDate(inst.dueDate, 'dd MMM yyyy') : log?.date ? formatDate(log.date, 'dd MMM yyyy') : '—'}
                       </td>
@@ -1150,7 +1164,7 @@ export function GroupCollectionMatrix({
           </div>
           <div>
             <h2 className="text-base font-bold text-gray-900 flex items-center gap-2 flex-wrap">
-              13-Week Field Collection Matrix
+              {periodCount === 13 && periodKind === 'week' ? '13-Week' : `${periodCount}-Month`} Field Collection Matrix
               <span className="text-xs font-mono font-bold bg-blue-100 text-blue-800 px-2 py-0.5 rounded">
                 {groupNumber}
               </span>
@@ -1192,7 +1206,7 @@ export function GroupCollectionMatrix({
               onClick={openRetryCollection}
               className="text-xs font-semibold gap-1.5 border-rose-300 text-rose-700 hover:bg-rose-50"
             >
-              <RotateCcw className="h-3.5 w-3.5" /> Retry Collection (WK {earliestRetryWeek})
+              <RotateCcw className="h-3.5 w-3.5" /> Retry Collection ({periodTag} {earliestRetryWeek})
             </Button>
           )}
           <Button
@@ -1393,10 +1407,10 @@ export function GroupCollectionMatrix({
                 BEYOND SKY MICRO-CREDIT ENTERPRISE
               </h1>
               <p className="text-xs font-semibold text-gray-700 uppercase">
-                Group 13-Week Field Collection Schedule & Repayment Ledger
+                Group {periodKind === 'month' ? `${TOTAL_WEEKS}-Month` : '13-Week'} Field Collection Schedule & Repayment Ledger
               </p>
               <p className="text-[10px] text-gray-500 print:text-black">
-                Branch: {branch} | Area: {area} | Penalty rate: {penaltyRate}% per week overdue
+                Branch: {branch} | Area: {area} | Penalty rate: {penaltyRate}% per {periodKind} overdue
               </p>
             </div>
             <div className="text-right text-xs font-mono">
@@ -1447,7 +1461,7 @@ export function GroupCollectionMatrix({
                       <div className="flex flex-col items-center">
                         <span className="font-bold text-gray-900 flex items-center gap-0.5">
                           {locked && <Lock className="h-3 w-3 text-gray-600" />}
-                          WK {weekNum}
+                          {periodTag} {weekNum}
                         </span>
                         {locked ? (
                           <span className="text-[8px] font-semibold text-gray-600 normal-case">Signed off</span>
@@ -1618,7 +1632,7 @@ export function GroupCollectionMatrix({
                       const w = i + 1
                       const inst = m.installments.find((x) => x.week === w)
                       const locked = lockedWeeks.includes(w)
-                      const wOver = inst?.status === 'overdue' ? Math.max(1, weeksOverdue(inst?.dueDate)) : 0
+                      const wOver = inst?.status === 'overdue' ? Math.max(1, weeksOverdue(inst?.dueDate, overdueSpan)) : 0
                       let chipClass = 'bg-gray-100 text-gray-400'
                       if (inst?.status === 'paid') chipClass = 'bg-emerald-200 text-emerald-900'
                       else if (inst?.status === 'partially_paid') chipClass = 'bg-amber-200 text-amber-900'
@@ -1800,6 +1814,7 @@ export function GroupCollectionMatrix({
                   id="txDate"
                   type="date"
                   value={collectionDate}
+                  max={toInputDate(new Date())}
                   onChange={(e) => setCollectionDate(e.target.value)}
                   required
                   className="h-8 text-xs mt-1"

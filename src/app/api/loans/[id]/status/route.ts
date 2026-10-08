@@ -109,6 +109,23 @@ export async function POST(
       )
     }
 
+    if (targetStatus === 'closed') {
+      const { data: summary } = await adminClient
+        .from('client_ledger_summary')
+        .select('outstanding_balance')
+        .eq('loan_id', params.id)
+        .maybeSingle()
+      const outstanding = Number((summary as { outstanding_balance?: number } | null)?.outstanding_balance || 0)
+      if (outstanding > 0.009) {
+        return NextResponse.json(
+          {
+            error: `This loan still has GHS ${outstanding.toFixed(2)} outstanding. It can be marked defaulted, and it closes on its own when the balance is paid.`,
+          },
+          { status: 409, headers: rateHeaders }
+        )
+      }
+    }
+
     // database.types.ts is stale for some loans columns — cast the builder
     const loansTable: any = adminClient.from('loans')
     const { data: updated, error: updateErr } = await loansTable

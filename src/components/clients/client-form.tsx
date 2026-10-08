@@ -44,6 +44,7 @@ const clientSchema = z.object({
   business_address: z.string().optional().or(z.literal('')),
   business_type: z.string().min(2, 'Required'),
   market_location: z.string().min(2, 'Required'),
+  monthly_income: z.coerce.number().positive('Monthly income is required'),
   religion: z.string().min(2, 'Required'),
   place_of_worship: z.string().min(2, 'Required'),
   religious_leader_name: z.string().min(2, 'Required'),
@@ -142,6 +143,7 @@ export function ClientForm() {
       business_address: '',
       business_type: '',
       market_location: '',
+      monthly_income: '',
       religion: 'Christianity',
       place_of_worship: '',
       religious_leader_name: '',
@@ -229,7 +231,7 @@ export function ClientForm() {
 
   const STEP_FIELDS: Record<number, string[]> = {
     0: ['full_name', 'phone_number', 'national_id', 'spouse_or_father_name', 'marital_status'],
-    1: ['present_address', 'permanent_address', 'business_type', 'market_location'],
+    1: ['present_address', 'permanent_address', 'business_type', 'market_location', 'monthly_income'],
     2: ['religion', 'place_of_worship', 'religious_leader_name', 'religious_leader_phone'],
     3: [
       'guarantor_name',
@@ -319,6 +321,27 @@ export function ClientForm() {
         return
       }
 
+      const dupRes = await fetch('/api/clients/duplicate-check', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone: (formData.phone_number as string).replace(/\s/g, ''),
+          nationalId: formData.national_id,
+        }),
+      })
+      if (dupRes.ok) {
+        const dup = await dupRes.json()
+        const archived = (dup.duplicates || []).find((item: any) => item.client?.archived_at)
+        if (archived) {
+          toast({
+            title: 'Restore the archived client',
+            description: `This phone or Ghana Card belongs to archived client ${archived.client.full_name} (${archived.client.account_number}). Restore that account instead of creating a new one.`,
+            variant: 'destructive',
+          })
+          return
+        }
+      }
+
       const { data, error } = await supabase
         .from('clients')
         .insert({
@@ -337,7 +360,7 @@ export function ClientForm() {
           business_type: formData.business_type.trim(),
           market_location: formData.market_location.trim(),
           daily_business_income: null,
-          monthly_income: null,
+          monthly_income: Number(formData.monthly_income),
           religion: formData.religion?.trim() || null,
           place_of_worship: formData.place_of_worship?.trim() || null,
           religious_leader_name: formData.religious_leader_name?.trim() || null,
@@ -503,16 +526,25 @@ export function ClientForm() {
         <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-2">
           <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
           <div>
-            <p className="text-sm font-medium text-amber-800">Possible duplicate detected</p>
+            <p className="text-sm font-medium text-amber-800">
+              {duplicateWarning.some((d: any) => d.client?.archived_at)
+                ? 'This person is already archived'
+                : 'Possible duplicate detected'}
+            </p>
             <ul className="text-xs text-amber-700 mt-1 space-y-0.5">
               {duplicateWarning.map((d: any, i: number) => (
                 <li key={i}>
                   • {d.client.full_name} ({d.client.account_number}) matches on {d.field.replace('_', ' ')}
-                  <Link href={`/clients/${d.client.id}`} className="ml-1 text-blue-600 hover:underline">View →</Link>
+                  {d.client.archived_at ? ' — archived. Restore that account instead of creating a new one.' : ''}
+                  {!d.client.archived_at && (
+                    <Link href={`/clients/${d.client.id}`} className="ml-1 text-blue-600 hover:underline">View →</Link>
+                  )}
                 </li>
               ))}
             </ul>
-            <p className="text-[11px] text-amber-600 mt-1">You can still proceed if this is a different person.</p>
+            {!duplicateWarning.some((d: any) => d.client?.archived_at) && (
+              <p className="text-[11px] text-amber-600 mt-1">You can still proceed if this is a different person.</p>
+            )}
           </div>
         </div>
       )}
@@ -588,7 +620,7 @@ export function ClientForm() {
               <MapPin className="h-4 w-4 text-blue-600" />
               2. Addresses, Business & Cashflow
             </CardTitle>
-            <CardDescription>Residential addresses, trading stall location, and daily turnover.</CardDescription>
+            <CardDescription>Residential addresses, trading stall location, and monthly income.</CardDescription>
           </CardHeader>
           <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5 sm:col-span-2">
@@ -610,6 +642,11 @@ export function ClientForm() {
               <Label htmlFor="market_location">Market Location / Stall *</Label>
               <Input id="market_location" name="market_location" placeholder="Makola Market Shed 4, Stall 12" value={formData.market_location} onChange={handleChange} required />
               {errors.market_location && <p className="text-xs text-red-500">{errors.market_location}</p>}
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="monthly_income">Monthly Income (GHS) *</Label>
+              <Input id="monthly_income" name="monthly_income" type="number" min="1" step="0.01" placeholder="2400" value={formData.monthly_income as any} onChange={handleChange} required />
+              {errors.monthly_income && <p className="text-xs text-red-500">{errors.monthly_income}</p>}
             </div>
             <div className="space-y-1.5 sm:col-span-2">
               <Label htmlFor="business_address">Detailed Business Address</Label>
@@ -726,6 +763,7 @@ export function ClientForm() {
                 <p className="font-semibold text-gray-700 text-[11px] uppercase tracking-wider">Business</p>
                 <p><span className="text-gray-400">Type:</span> <span className="font-medium">{formData.business_type}</span></p>
                 <p><span className="text-gray-400">Market:</span> {formData.market_location}</p>
+                <p><span className="text-gray-400">Monthly income:</span> {formData.monthly_income ? `GHS ${formData.monthly_income}` : '—'}</p>
                 <button type="button" onClick={() => setCurrentStep(1)} className="text-blue-600 hover:underline text-[11px]">Edit →</button>
               </div>
               <div className="p-3 bg-gray-50 rounded-lg border border-gray-100 space-y-1.5">

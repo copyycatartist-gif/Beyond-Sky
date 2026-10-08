@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { requirePageRoles } from '@/lib/page-access'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
@@ -9,6 +10,7 @@ import Link from 'next/link'
 export const dynamic = 'force-dynamic'
 
 export default async function ReportsPage() {
+  await requirePageRoles(['supervisor', 'manager', 'accountant_admin'])
   const supabase = await createClient()
 
   // Fetch all reports concurrently in parallel

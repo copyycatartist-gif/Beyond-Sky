@@ -391,6 +391,12 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
                     <Briefcase className="h-3 w-3 text-blue-500" />
                     {client.business_type} • {client.market_location}
                   </p>
+                  <p className="text-gray-400 mt-2">Monthly income</p>
+                  <p className="font-medium text-gray-800 mt-0.5">
+                    {client.monthly_income != null && Number(client.monthly_income) > 0
+                      ? formatCurrency(Number(client.monthly_income))
+                      : 'Not recorded'}
+                  </p>
                   <a
                     href={`https://www.google.com/maps/search/${encodeURIComponent(client.market_location + ' Ghana')}`}
                     target="_blank"

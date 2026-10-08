@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { requirePageRoles } from '@/lib/page-access'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { formatDate } from '@/lib/utils'
@@ -7,6 +8,7 @@ import { MessageSquare, Phone, CheckCircle2, XCircle, Clock } from 'lucide-react
 export const dynamic = 'force-dynamic'
 
 export default async function SmsLogPage() {
+  await requirePageRoles(['manager', 'accountant_admin'])
   const supabase = await createClient()
 
   // Fetch SMS log entries

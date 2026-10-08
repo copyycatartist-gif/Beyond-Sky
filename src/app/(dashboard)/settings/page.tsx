@@ -1,9 +1,11 @@
 import { createClient } from '@/lib/supabase/server'
+import { requirePageRoles } from '@/lib/page-access'
 import { SettingsForm } from '@/components/settings/settings-form'
 
 export const dynamic = 'force-dynamic'
 
 export default async function SettingsPage() {
+  await requirePageRoles(['manager', 'accountant_admin'])
   const supabase = await createClient()
 
   // Fetch all business settings from DB

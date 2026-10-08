@@ -225,7 +225,7 @@ export default async function LoanDetailPage({ params }: { params: { id: string 
         <Card className="p-4">
           <p className="text-xs text-gray-500 font-medium">Principal Facility</p>
           <p className="text-xl font-bold text-gray-900 mt-0.5">{formatCurrency(loan.principal)}</p>
-          <p className="text-[11px] text-gray-400">Cycle {cycleNumber} • {termWeeks} weeks</p>
+          <p className="text-[11px] text-gray-400">Cycle {cycleNumber} • {loan.payment_frequency === 'monthly' ? `${loan.term_months || termWeeks} months` : `${termWeeks} weeks`}</p>
         </Card>
 
         <Card className="p-4">
@@ -244,7 +244,11 @@ export default async function LoanDetailPage({ params }: { params: { id: string 
             {formatCurrency(loan.weekly_installment)}
             <span className="text-xs font-medium text-gray-500"> / {loan.payment_frequency === 'monthly' ? 'mo' : 'wk'}</span>
           </p>
-          <p className="text-[11px] text-gray-400">{termWeeks} weekly payments</p>
+          <p className="text-[11px] text-gray-400">
+            {loan.payment_frequency === 'monthly'
+              ? `${loan.term_months || loan.term_weeks} monthly payments`
+              : `${termWeeks} weekly payments`}
+          </p>
         </Card>
       </div>
 
@@ -552,6 +556,21 @@ export default async function LoanDetailPage({ params }: { params: { id: string 
         <div>
           <p className="text-gray-400">Business &amp; Location</p>
           <p className="text-gray-800 font-medium">{loan.clients?.business_type} • {loan.clients?.market_location}</p>
+        </div>
+        <div>
+          <p className="text-gray-400">Monthly income</p>
+          <p className="text-gray-800 font-medium">
+            {loan.clients?.monthly_income != null && Number(loan.clients.monthly_income) > 0
+              ? formatCurrency(Number(loan.clients.monthly_income))
+              : 'Not recorded'}
+          </p>
+        </div>
+        <div>
+          <p className="text-gray-400">Installment against income</p>
+          <p className="text-gray-800 font-medium capitalize">
+            {loan.eligibility_flag || 'Not calculated'}
+            {loan.eligibility_ratio != null ? ` · ${Math.round(Number(loan.eligibility_ratio) * 100)}% of income` : ''}
+          </p>
         </div>
         <div>
           <p className="text-gray-400">Guarantor</p>

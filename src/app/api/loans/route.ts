@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
 import { rateLimit, getRateLimitHeaders } from '@/lib/rate-limit'
 import { sanitizeInput } from '@/lib/sanitize'
+import { claimIdempotency, completeIdempotency, releaseIdempotency } from '@/lib/idempotency'
 
 /**
  * POST /api/loans — server-side loan application creation.
@@ -12,23 +13,6 @@ import { sanitizeInput } from '@/lib/sanitize'
  * installment, cycle number, eligibility flag, …) from `settings`, so this
  * route only writes the contract inputs.
  */
-
-interface CachedResponse {
-  status: number
-  body: Record<string, unknown>
-}
-
-/** Module-level idempotency cache: `${userId}:${idempotencyKey}` -> response */
-const idempotencyCache = new Map<string, { result: CachedResponse; ts: number }>()
-const IDEMPOTENCY_TTL_MS = 120_000
-
-/** Opportunistically drop stale idempotency entries. */
-function cleanupIdempotencyCache() {
-  const now = Date.now()
-  idempotencyCache.forEach((entry, key) => {
-    if (now - entry.ts > IDEMPOTENCY_TTL_MS) idempotencyCache.delete(key)
-  })
-}
 
 export async function POST(request: Request) {
   try {
@@ -64,20 +48,6 @@ export async function POST(request: Request) {
         { error: 'Too many loan submissions. Please wait a minute and try again.' },
         { status: 429, headers: rlHeaders }
       )
-    }
-
-    // Idempotency: replay a cached response for a repeated key within 120s
-    cleanupIdempotencyCache()
-    const idempotencyKey = sanitizeInput(request.headers.get('Idempotency-Key') || '')
-    const cacheKey = idempotencyKey ? `${user.id}:${idempotencyKey}` : ''
-    if (cacheKey) {
-      const cached = idempotencyCache.get(cacheKey)
-      if (cached && Date.now() - cached.ts <= IDEMPOTENCY_TTL_MS) {
-        return NextResponse.json(cached.result.body, {
-          status: cached.result.status,
-          headers: rlHeaders,
-        })
-      }
     }
 
     // Parse + sanitize body
@@ -220,6 +190,18 @@ export async function POST(request: Request) {
     if (agreementDistrict) insertPayload.agreement_district = agreementDistrict
     if (agreementRegion) insertPayload.agreement_region = agreementRegion
 
+    const idempotencyKey = sanitizeInput(request.headers.get('Idempotency-Key') || '')
+    const claim = await claimIdempotency(adminClient, user.id, idempotencyKey)
+    if (claim.state === 'replay') {
+      return NextResponse.json(claim.body, { status: claim.status, headers: rlHeaders })
+    }
+    if (claim.state === 'busy') {
+      return NextResponse.json(
+        { error: 'This application is already being submitted. Wait a moment and refresh.' },
+        { status: 409, headers: rlHeaders }
+      )
+    }
+
     const { data: loan, error: insertErr } = await adminClient
       .from('loans' as any)
       .insert(insertPayload as never)
@@ -227,6 +209,7 @@ export async function POST(request: Request) {
       .single()
 
     if (insertErr) {
+      if (claim.state === 'claimed') await releaseIdempotency(adminClient, claim.id)
       const msg = insertErr.message || 'Failed to create loan application'
       // Surface the one-active-loan-per-client trigger cleanly
       if (/active loan/i.test(msg)) {
@@ -248,11 +231,8 @@ export async function POST(request: Request) {
     if (overrideReason) meta.overrideReason = overrideReason
     if (Object.keys(meta).length > 0) responseBody.meta = meta
 
-    if (cacheKey) {
-      idempotencyCache.set(cacheKey, {
-        result: { status: 200, body: responseBody },
-        ts: Date.now(),
-      })
+    if (claim.state === 'claimed') {
+      await completeIdempotency(adminClient, claim.id, 200, responseBody)
     }
 
     return NextResponse.json(responseBody, { status: 200, headers: rlHeaders })

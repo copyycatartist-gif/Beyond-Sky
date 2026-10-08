@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -79,6 +79,8 @@ export function RepaymentForm({
   const [momoReference, setMomoReference] = useState('')
   const [transactionDate, setTransactionDate] = useState(toInputDate(new Date()))
   const [loading, setLoading] = useState(false)
+  const payKey = useRef(typeof crypto !== 'undefined' ? crypto.randomUUID() : String(Date.now()))
+  const groupKey = useRef(typeof crypto !== 'undefined' ? crypto.randomUUID() : String(Date.now()))
   const { toast } = useToast()
 
   const currentLoan = activeLoans.find((l) => l.id === selectedLoanId)
@@ -124,6 +126,15 @@ export function RepaymentForm({
       return
     }
 
+    if (amount > Number(currentLoan.outstanding_balance) + 0.009) {
+      toast({
+        title: 'Amount too high',
+        description: `Amount cannot be more than the outstanding balance of ${formatCurrency(currentLoan.outstanding_balance)}`,
+        variant: 'destructive',
+      })
+      return
+    }
+
     if (method === 'momo' && !momoReference.trim()) {
       toast({ title: 'MoMo Ref Required', description: 'Please provide the MoMo reference number', variant: 'destructive' })
       return
@@ -141,10 +152,12 @@ export function RepaymentForm({
           method,
           momoReference: method === 'momo' ? momoReference : null,
           transactionDate,
+          idempotencyKey: payKey.current,
         }),
       })
 
       const data = await res.json()
+      payKey.current = crypto.randomUUID()
 
       if (!res.ok) {
         throw new Error(data.error || 'Failed to record repayment')
@@ -254,10 +267,12 @@ export function RepaymentForm({
           groupId: currentGroup.id,
           groupName: currentGroup.name,
           weekNumber: groupWeekNumber,
+          idempotencyKey: groupKey.current,
         }),
       })
 
       const data = await res.json()
+      groupKey.current = crypto.randomUUID()
       if (!res.ok) throw new Error(data.error || 'Failed to record batch collection')
 
       toast({
@@ -347,6 +362,7 @@ export function RepaymentForm({
                       id="txDate"
                       type="date"
                       value={transactionDate}
+                      max={toInputDate(new Date())}
                       onChange={(e) => setTransactionDate(e.target.value)}
                       required
                     />
@@ -553,6 +569,7 @@ export function RepaymentForm({
                     id="grpDate"
                     type="date"
                     value={groupTxDate}
+                    max={toInputDate(new Date())}
                     onChange={(e) => setGroupTxDate(e.target.value)}
                     required
                     className="h-9 text-xs"

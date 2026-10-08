@@ -39,7 +39,7 @@ export async function PATCH(request: NextRequest) {
     'full_name', 'phone_number', 'national_id', 'spouse_or_father_name',
     'age', 'date_of_birth', 'marital_status', 'residential_address',
     'permanent_address', 'business_address', 'business_type', 'market_location',
-    'religion', 'place_of_worship',
+    'religion', 'place_of_worship', 'monthly_income',
     'religious_leader_name', 'religious_leader_phone', 'branch', 'area',
     'emergency_contact_name', 'emergency_contact_phone', 'emergency_contact_relationship',
     'guarantor_name', 'guarantor_gender', 'guarantor_phone', 'guarantor_occupation',
@@ -53,6 +53,14 @@ export async function PATCH(request: NextRequest) {
     if (field in sanitized) {
       filteredUpdates[field] = sanitized[field] === '' ? null : sanitized[field]
     }
+  }
+
+  if ('monthly_income' in filteredUpdates) {
+    const income = Number(filteredUpdates.monthly_income)
+    if (!Number.isFinite(income) || income <= 0) {
+      return NextResponse.json({ error: 'Monthly income must be greater than 0' }, { status: 400 })
+    }
+    filteredUpdates.monthly_income = income
   }
 
   if (Object.keys(filteredUpdates).length === 0) {

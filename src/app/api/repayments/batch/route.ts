@@ -3,6 +3,8 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
 import { sendTemplatedSms } from '@/lib/sms/send'
 import { formatDate } from '@/lib/utils'
+import { claimIdempotency, completeIdempotency, releaseIdempotency } from '@/lib/idempotency'
+import { accraToday, overpaymentError, paymentDateError } from '@/lib/payments/guards'
 
 interface RepaymentItem {
   loanId: string
@@ -42,6 +44,7 @@ export async function POST(request: Request) {
       groupId,
       groupName,
       weekNumber,
+      idempotencyKey,
     } = payload as {
       repayments: RepaymentItem[]
       transactionDate?: string
@@ -49,14 +52,50 @@ export async function POST(request: Request) {
       groupId?: string
       groupName?: string
       weekNumber?: number
+      idempotencyKey?: string
+    }
+
+    if (!groupId) {
+      return NextResponse.json(
+        { error: 'A collection must name the disbursement group it belongs to' },
+        { status: 400 }
+      )
     }
 
     if (!Array.isArray(repayments) || repayments.length === 0) {
       return NextResponse.json({ error: 'No repayment records provided' }, { status: 400 })
     }
 
+    const txDate = transactionDate || accraToday()
+    const dateError = paymentDateError(txDate)
+    if (dateError) {
+      return NextResponse.json({ error: dateError }, { status: 400 })
+    }
+
     const adminClient = createAdminClient()
-    const txDate = transactionDate || new Date().toISOString().split('T')[0]
+    const claim = await claimIdempotency(adminClient, user.id, idempotencyKey)
+    if (claim.state === 'replay') {
+      return NextResponse.json(claim.body, { status: claim.status })
+    }
+    if (claim.state === 'busy') {
+      return NextResponse.json(
+        { error: 'This collection is already being recorded. Wait a moment and refresh.' },
+        { status: 409 }
+      )
+    }
+
+    const { data: members, error: memberErr } = await adminClient
+      .from('group_members')
+      .select('client_id')
+      .eq('group_id', groupId)
+      .is('date_left', null)
+
+    if (memberErr) {
+      if (claim.state === 'claimed') await releaseIdempotency(adminClient, claim.id)
+      return NextResponse.json({ error: 'Could not read group members' }, { status: 400 })
+    }
+
+    const memberIds = new Set((members || []).map((member) => member.client_id))
 
     let totalAmount = 0
     let successCount = 0
@@ -89,8 +128,25 @@ export async function POST(request: Request) {
           throw new Error(`Loan ID ${item.loanId} not found`)
         }
 
+        if (!memberIds.has(loan.client_id)) {
+          throw new Error(`Loan ${loan.loan_number} is not a member of this disbursement group`)
+        }
+
         if (loan.status !== 'active' && loan.status !== 'defaulted') {
           throw new Error(`Loan ${loan.loan_number} is in '${loan.status}' status (cannot receive repayments)`)
+        }
+
+        const { data: before } = await adminClient
+          .from('client_ledger_summary')
+          .select('outstanding_balance')
+          .eq('loan_id', loan.id)
+          .maybeSingle()
+        const outstanding = before
+          ? Number(before.outstanding_balance)
+          : Number(loan.total_repayable)
+        const tooMuch = overpaymentError(amt, outstanding)
+        if (tooMuch) {
+          throw new Error(`Loan ${loan.loan_number}: ${tooMuch}`)
         }
 
         // 2. Insert transaction (triggers FIFO repayment schedule allocation)
@@ -161,7 +217,7 @@ export async function POST(request: Request) {
       }
     }
 
-    return NextResponse.json({
+    const responseBody = {
       success: true,
       message: `Batch collection recorded successfully: GHS ${totalAmount.toFixed(2)} collected across ${successCount} member(s).`,
       summary: {
@@ -174,7 +230,15 @@ export async function POST(request: Request) {
       },
       processed,
       errors,
-    })
+    }
+    if (claim.state === 'claimed') {
+      if (successCount === 0 && failedCount > 0) {
+        await releaseIdempotency(adminClient, claim.id)
+      } else {
+        await completeIdempotency(adminClient, claim.id, 200, responseBody)
+      }
+    }
+    return NextResponse.json(responseBody)
   } catch (err: any) {
     console.error('Batch repayment error:', err)
     return NextResponse.json({ error: err.message || 'Internal Server Error' }, { status: 500 })

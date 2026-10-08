@@ -85,6 +85,24 @@ export async function POST(request: Request) {
       )
     }
 
+    // The client must land in the Monday–Sunday (or calendar month) cohort
+    // before money moves. If that fails, the loan stays approved.
+    let cohort: { groupId: string; addedMember: boolean }
+    try {
+      cohort = await assignDisbursementGroup(adminClient as any, {
+        clientId: loan.client_id,
+        loanId,
+        frequency: loan.payment_frequency === 'monthly' ? 'monthly' : 'weekly',
+        disbursedOn: new Date().toISOString().slice(0, 10),
+        actorId: user.id,
+      })
+    } catch (cohortErr: any) {
+      return NextResponse.json(
+        { error: cohortErr?.message || 'Disbursement group could not be created. The loan is still approved.' },
+        { status: 400, headers: rateHeaders }
+      )
+    }
+
     // SINGLE atomic RPC: validates status, computes net = principal −
     // total_deductions − refinance_balance, activates the loan (fires the
     // repayment-schedule trigger), posts disbursement + fee transactions and
@@ -100,6 +118,15 @@ export async function POST(request: Request) {
     )
 
     if (rpcErr) {
+      if (cohort.addedMember) {
+        await adminClient
+          .from('group_members')
+          .delete()
+          .eq('group_id', cohort.groupId)
+          .eq('client_id', loan.client_id)
+          .is('date_left', null)
+        await adminClient.from('loans').update({ group_id: null } as never).eq('id', loanId)
+      }
       // Map transaction-level failures to clear structured errors
       const msg = String(rpcErr.message || '')
       const code = String((rpcErr as any).code || '')
@@ -129,26 +156,6 @@ export async function POST(request: Request) {
     }
 
     const netToClient = Number(netDisbursed ?? 0)
-
-    try {
-      const { data: disbursed } = await adminClient
-        .from('loans')
-        .select('disbursement_date, payment_frequency, client_id')
-        .eq('id', loanId)
-        .maybeSingle()
-      const row = disbursed as { disbursement_date?: string; payment_frequency?: string; client_id?: string } | null
-      if (row?.client_id) {
-        await assignDisbursementGroup(adminClient as any, {
-          clientId: row.client_id,
-          loanId,
-          frequency: row.payment_frequency === 'monthly' ? 'monthly' : 'weekly',
-          disbursedOn: row.disbursement_date || new Date().toISOString().slice(0, 10),
-          actorId: user.id,
-        })
-      }
-    } catch (cohortErr) {
-      console.error('[disbursement cohort]', cohortErr)
-    }
 
     // SMS notification — best-effort; a provider failure must NEVER fail the
     // (already committed) disbursement.

@@ -71,7 +71,7 @@ const NAV_ITEMS: NavItem[] = [
     href: '/reports',
     label: 'Ledger & Reports',
     icon: BarChart3,
-    roles: ['manager', 'accountant_admin'],
+    roles: ['supervisor', 'manager', 'accountant_admin'],
   },
   {
     href: '/sms',

@@ -3,6 +3,8 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
 import { sendTemplatedSms } from '@/lib/sms/send'
 import { formatDate } from '@/lib/utils'
+import { claimIdempotency, completeIdempotency, releaseIdempotency } from '@/lib/idempotency'
+import { accraToday, overpaymentError, paymentDateError } from '@/lib/payments/guards'
 
 export async function POST(request: Request) {
   try {
@@ -27,17 +29,38 @@ export async function POST(request: Request) {
       )
     }
 
-    const { loanId, amount, method, momoReference, transactionDate } = await request.json()
+    const { loanId, amount, method, momoReference, transactionDate, idempotencyKey } = await request.json()
 
     if (!loanId || !amount || amount <= 0 || !method) {
       return NextResponse.json({ error: 'Invalid repayment payload' }, { status: 400 })
     }
 
-    if (method === 'momo' && (!momoReference || !momoReference.trim())) {
-      return NextResponse.json({ error: 'MoMo reference is mandatory for MoMo transactions' }, { status: 400 })
+    const date = transactionDate || accraToday()
+    const dateError = paymentDateError(date)
+    if (dateError) {
+      return NextResponse.json({ error: dateError }, { status: 400 })
     }
 
     const adminClient = createAdminClient()
+    const claim = await claimIdempotency(
+      adminClient,
+      user.id,
+      idempotencyKey || request.headers.get('Idempotency-Key')
+    )
+    if (claim.state === 'replay') {
+      return NextResponse.json(claim.body, { status: claim.status })
+    }
+    if (claim.state === 'busy') {
+      return NextResponse.json(
+        { error: 'This payment is already being recorded. Wait a moment and refresh.' },
+        { status: 409 }
+      )
+    }
+
+    if (method === 'momo' && (!momoReference || !momoReference.trim())) {
+      if (claim.state === 'claimed') await releaseIdempotency(adminClient, claim.id)
+      return NextResponse.json({ error: 'MoMo reference is mandatory for MoMo transactions' }, { status: 400 })
+    }
 
     // 1. Fetch loan and client details
     const { data: loan, error: loanErr } = await adminClient
@@ -50,17 +73,31 @@ export async function POST(request: Request) {
       .single()
 
     if (loanErr || !loan) {
+      if (claim.state === 'claimed') await releaseIdempotency(adminClient, claim.id)
       return NextResponse.json({ error: 'Loan not found' }, { status: 404 })
     }
 
     if (loan.status !== 'active' && loan.status !== 'defaulted') {
+      if (claim.state === 'claimed') await releaseIdempotency(adminClient, claim.id)
       return NextResponse.json(
         { error: `Cannot record repayment for loan in '${loan.status}' status` },
         { status: 400 }
       )
     }
 
-    const date = transactionDate || new Date().toISOString().split('T')[0]
+    const { data: before } = await adminClient
+      .from('client_ledger_summary')
+      .select('outstanding_balance')
+      .eq('loan_id', loan.id)
+      .maybeSingle()
+    const outstanding = before
+      ? Number(before.outstanding_balance)
+      : Number(loan.total_repayable)
+    const tooMuch = overpaymentError(parseFloat(amount), outstanding)
+    if (tooMuch) {
+      if (claim.state === 'claimed') await releaseIdempotency(adminClient, claim.id)
+      return NextResponse.json({ error: tooMuch }, { status: 400 })
+    }
 
     // 2. Insert into append-only transactions table (credit)
     // The Postgres trigger `transactions_apply_repayment` will automatically execute FIFO application
@@ -81,7 +118,10 @@ export async function POST(request: Request) {
       .select()
       .single()
 
-    if (txErr) throw txErr
+    if (txErr) {
+      if (claim.state === 'claimed') await releaseIdempotency(adminClient, claim.id)
+      throw txErr
+    }
 
     // 3. Compute remaining balance after repayment for SMS notification
     const { data: summary } = await adminClient
@@ -117,14 +157,18 @@ export async function POST(request: Request) {
       }
     }
 
-    return NextResponse.json({
+    const responseBody = {
       success: true,
       message: loanFullyPaid
         ? `Repayment of GHS ${paidAmount.toFixed(2)} recorded. Loan ${loan.loan_number} is now fully paid.`
         : `Repayment of GHS ${paidAmount.toFixed(2)} recorded successfully via ${method.toUpperCase()}. Remaining balance: GHS ${remainingBal.toFixed(2)}.`,
       remainingBalance: remainingBal,
       loanClosed: loanFullyPaid,
-    })
+    }
+    if (claim.state === 'claimed') {
+      await completeIdempotency(adminClient, claim.id, 200, responseBody)
+    }
+    return NextResponse.json(responseBody)
   } catch (err: any) {
     console.error('[Repayment Recording Error]', err)
     return NextResponse.json({ error: err.message || 'Failed to record repayment' }, { status: 500 })

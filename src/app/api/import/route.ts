@@ -1,6 +1,46 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
+import { isValidGhanaPhone } from '@/lib/sanitize'
+
+const GHANA_CARD = /^GHA-\d{8,9}-\d$/i
+
+function normalizePhone(value: string): string {
+  const trimmed = value.trim()
+  return trimmed.startsWith('+')
+    ? `+${trimmed.slice(1).replace(/\D/g, '')}`
+    : trimmed.replace(/\D/g, '')
+}
+
+function requireGhanaPhone(value: string, label: string): string {
+  const phone = normalizePhone(value)
+  if (!isValidGhanaPhone(phone)) {
+    throw new Error(`${label} must be a Ghana number like 0244123456`)
+  }
+  return phone
+}
+
+function requireGhanaCard(value: string): string {
+  const id = value.trim().toUpperCase()
+  if (!GHANA_CARD.test(id)) {
+    throw new Error('Ghana Card must look like GHA-712345678-1')
+  }
+  return id
+}
+
+function ageOnDate(iso: string): number {
+  const today = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Africa/Accra',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date())
+  const [ty, tm, td] = today.split('-').map(Number)
+  const [year, month, day] = iso.split('-').map(Number)
+  let age = ty - year
+  if (tm < month || (tm === month && td < day)) age -= 1
+  return age
+}
 
 /** Paper forms use DD/MM/YY. Postgres expects YYYY-MM-DD and rejects 31/01/89 as month 31. */
 function parseImportDate(value: unknown, label: string): string | null {
@@ -114,10 +154,8 @@ async function handleClientsMigration(rows: any[], userId: string, adminClient: 
 
     try {
       if (!name) throw new Error('Missing client full name')
-      const phone = String(row.phoneNumber || row.phone_number || '').trim()
-      if (!phone) throw new Error('Missing client phone number')
-      const nationalId = String(row.nationalId || row.national_id || '').trim()
-      if (!nationalId) throw new Error('Missing client Ghana Card / National ID')
+      const phone = requireGhanaPhone(String(row.phoneNumber || row.phone_number || ''), 'Phone number')
+      const nationalId = requireGhanaCard(String(row.nationalId || row.national_id || ''))
       const area = String(row.area || '').trim()
       const spouse = String(row.spouseOrFatherName || row.spouse_or_father_name || '').trim()
       if (!spouse) throw new Error('Missing husband / wife / father name')
@@ -129,24 +167,31 @@ async function handleClientsMigration(rows: any[], userId: string, adminClient: 
       if (!businessType) throw new Error('Missing business type')
       const marketLocation = String(row.marketLocation || row.market_location || '').trim()
       if (!marketLocation) throw new Error('Missing market location')
+      const monthlyIncome = Number(String(row.monthlyIncome || row.monthly_income || '').replace(/,/g, ''))
+      if (!Number.isFinite(monthlyIncome) || monthlyIncome <= 0) {
+        throw new Error('Monthly income is required and must be greater than 0')
+      }
       const religion = String(row.religion || '').trim()
       if (!religion) throw new Error('Missing religion')
       const placeOfWorship = String(row.placeOfWorship || row.place_of_worship || '').trim()
       if (!placeOfWorship) throw new Error('Missing place of worship')
       const leaderName = String(row.pastorOrImamName || row.religiousLeaderName || row.religious_leader_name || '').trim()
       if (!leaderName) throw new Error('Missing pastor / imam name')
-      const leaderPhone = String(row.pastorOrImamPhone || row.religiousLeaderPhone || row.religious_leader_phone || '').trim()
-      if (!leaderPhone) throw new Error('Missing pastor / imam phone')
+      const leaderPhone = requireGhanaPhone(
+        String(row.pastorOrImamPhone || row.religiousLeaderPhone || row.religious_leader_phone || ''),
+        'Pastor / imam phone'
+      )
       const guarantorName = String(row.guarantorName || row.guarantor_name || '').trim()
       if (!guarantorName) throw new Error('Missing guarantor name')
-      const guarantorPhone = String(row.guarantorPhone || row.guarantor_phone || '').trim()
-      if (!guarantorPhone) throw new Error('Missing guarantor phone')
+      const guarantorPhone = requireGhanaPhone(String(row.guarantorPhone || row.guarantor_phone || ''), 'Guarantor phone')
       const guarantorOccupation = String(row.guarantorOccupation || row.guarantor_occupation || row.guarantorBusiness || row.guarantor_business || '').trim()
       if (!guarantorOccupation) throw new Error('Missing guarantor occupation')
       const guarantorAddress = String(row.guarantorResidentialAddress || row.guarantor_residential_address || '').trim()
       if (!guarantorAddress) throw new Error('Missing guarantor address')
-
-      const age = parseInt(row.age || '0', 10)
+      const dateOfBirth = parseImportDate(row.dateOfBirth || row.dob, 'Date of birth')
+      if (!dateOfBirth) throw new Error('Date of birth is required')
+      const age = ageOnDate(dateOfBirth)
+      if (age < 18) throw new Error('Client must be 18 or older')
       const rawMarital = String(row.maritalStatus || row.marital_status || '').toLowerCase().trim()
       if (!['married', 'unmarried', 'abandoned', 'divorced', 'widow'].includes(rawMarital)) {
         throw new Error('Marital status must be married, unmarried, abandoned, divorced, or widow')
@@ -165,8 +210,8 @@ async function handleClientsMigration(rows: any[], userId: string, adminClient: 
           phone_number: phone,
           national_id: nationalId,
           spouse_or_father_name: spouse,
-          age: age > 0 ? age : null,
-          date_of_birth: parseImportDate(row.dateOfBirth || row.dob, 'Date of birth'),
+          age,
+          date_of_birth: dateOfBirth,
           marital_status: rawMarital,
           residential_address: presentAddress,
           permanent_address: permanentAddress,
@@ -174,7 +219,7 @@ async function handleClientsMigration(rows: any[], userId: string, adminClient: 
           business_type: businessType,
           market_location: marketLocation,
           daily_business_income: null,
-          monthly_income: null,
+          monthly_income: monthlyIncome,
           religion,
           place_of_worship: placeOfWorship,
           religious_leader_name: leaderName,
@@ -195,6 +240,8 @@ async function handleClientsMigration(rows: any[], userId: string, adminClient: 
           guarantor_place_of_worship: null,
 
           status: 'active',
+          data_protection_consent: true,
+          consent_date: new Date().toISOString(),
           created_by: userId,
           date_registered: parseImportDate(row.dateRegistered, 'Date registered') || new Date().toISOString().split('T')[0],
         })
@@ -848,19 +895,13 @@ async function handleGroup13WeekLedgerMigration(rows: any[], userId: string, adm
       }
 
       // 2. Resolve or Create Client
-      let phone = String(row.phoneNumber || row.phone || '').trim().replace(/\D/g, '')
-      if (!phone) {
-        phone = `024${String(1000000 + (rowNum * 137)).slice(0, 7)}`
-      } else if (phone.length === 9 && !phone.startsWith('0')) {
-        phone = `0${phone}`
-      }
+      const phone = requireGhanaPhone(String(row.phoneNumber || row.phone || ''), 'Phone number')
+      const nationalId = requireGhanaCard(String(row.nationalId || row.national_id || row.ghanaCard || ''))
 
       let clientQuery = adminClient.from('clients').select('id, full_name, account_number')
       let { data: client } = await clientQuery.ilike('full_name', fullName).maybeSingle()
 
       if (!client) {
-        const nationalId = `GHA-${String(700000000 + (rowNum * 313)).slice(0, 9)}-${(rowNum % 9) + 1}`
-
         const { data: newClient, error: clientErr } = await adminClient
           .from('clients')
           .insert({
@@ -884,6 +925,8 @@ async function handleGroup13WeekLedgerMigration(rows: any[], userId: string, adm
             guarantor_occupation: 'Trader',
             guarantor_employer: 'Self-employed',
             status: 'active',
+            data_protection_consent: true,
+            consent_date: new Date().toISOString(),
             created_by: userId,
           })
           .select('id, full_name, account_number')

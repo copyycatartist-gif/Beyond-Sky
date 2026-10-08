@@ -179,6 +179,7 @@ export default async function GroupDetailPage({ params }: { params: { id: string
           .from('loans')
           .select(`
             id, loan_number, principal, total_repayable, weekly_installment, status, client_id,
+            payment_frequency, term_months, term_weeks,
             repayment_schedule (
               id, installment_number, due_date, expected_amount, paid_amount, balance, status
             )
@@ -234,7 +235,12 @@ export default async function GroupDetailPage({ params }: { params: { id: string
     const outstanding = balInfo?.outstanding ?? totalRepayable
     const cumPaid = balInfo?.repaid ?? (totalRepayable - outstanding)
 
-    const installments = Array.from({ length: 13 }, (_, wIdx) => {
+    const isMonthly = clientLoan?.payment_frequency === 'monthly'
+    const periodCount = isMonthly
+      ? Math.min(6, Math.max(1, Number(clientLoan?.term_months || clientLoan?.term_weeks || rawSchedule.length || 1)))
+      : 13
+
+    const installments = Array.from({ length: periodCount }, (_, wIdx) => {
       const weekNum = wIdx + 1
       const inst = rawSchedule.find((s: any) => s.installment_number === weekNum)
       return {
@@ -263,6 +269,7 @@ export default async function GroupDetailPage({ params }: { params: { id: string
       outstandingBalance: Number(outstanding),
       cumulativePaid: Number(cumPaid),
       loanStatus: clientLoan?.status,
+      paymentFrequency: isMonthly ? 'monthly' : 'weekly',
       installments,
     }
   })
@@ -543,16 +550,35 @@ export default async function GroupDetailPage({ params }: { params: { id: string
         </TabsList>
 
         <TabsContent value="matrix" className="space-y-4">
-          <GroupCollectionMatrix
-            groupId={g.id}
-            groupName={g.name}
-            groupNumber={g.group_number}
-            meetingDay={g.meeting_day || 'Weekly'}
-            meetingPlace={g.meeting_place || 'Market Central'}
-            branch={g.branch || 'Makola Branch'}
-            area={g.area || 'Accra Central'}
-            memberSchedules={memberSchedules}
-          />
+          {(memberSchedules.some((row) => row.paymentFrequency !== 'monthly') ||
+            !memberSchedules.some((row) => row.paymentFrequency === 'monthly')) && (
+            <GroupCollectionMatrix
+              groupId={g.id}
+              groupName={g.name}
+              groupNumber={g.group_number}
+              meetingDay={g.meeting_day || 'Weekly'}
+              meetingPlace={g.meeting_place || 'Market Central'}
+              branch={g.branch || 'Makola Branch'}
+              area={g.area || 'Accra Central'}
+              memberSchedules={memberSchedules.filter((row) => row.paymentFrequency !== 'monthly')}
+              periodCount={13}
+              periodKind="week"
+            />
+          )}
+          {memberSchedules.some((row) => row.paymentFrequency === 'monthly') && (
+            <GroupCollectionMatrix
+              groupId={g.id}
+              groupName={g.name}
+              groupNumber={g.group_number}
+              meetingDay={g.meeting_day || 'Monthly'}
+              meetingPlace={g.meeting_place || 'Market Central'}
+              branch={g.branch || 'Makola Branch'}
+              area={g.area || 'Accra Central'}
+              memberSchedules={memberSchedules.filter((row) => row.paymentFrequency === 'monthly')}
+              periodCount={Math.max(1, ...memberSchedules.filter((row) => row.paymentFrequency === 'monthly').map((row) => row.installments.length))}
+              periodKind="month"
+            />
+          )}
         </TabsContent>
 
         <TabsContent value="members" className="space-y-4 print:hidden">
