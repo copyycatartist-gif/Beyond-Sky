@@ -55,19 +55,18 @@ const clientSchema = z.object({
   guarantor_employer: z.string().optional().or(z.literal('')),
   guarantor_residential_address: z.string().min(5, 'Required'),
   branch: z.string().optional().or(z.literal('')),
-  area: z.string().min(2, 'Required'),
+  area: z.string().optional().or(z.literal('')),
   data_protection_consent: z.literal(true, { errorMap: () => ({ message: 'Consent is required' }) }),
 })
 
 type FormData = z.input<typeof clientSchema> & { data_protection_consent: boolean }
 
 const STEPS = [
-  { id: 0, title: 'Territory', icon: MapPin },
-  { id: 1, title: 'Personal Information', icon: User },
-  { id: 2, title: 'Business & Address', icon: MapPin },
-  { id: 3, title: 'Faith Reference', icon: Church },
-  { id: 4, title: 'Guarantor', icon: ShieldCheck },
-  { id: 5, title: 'Review & Submit', icon: Check },
+  { id: 0, title: 'Personal Information', icon: User },
+  { id: 1, title: 'Business & Address', icon: MapPin },
+  { id: 2, title: 'Faith Reference', icon: Church },
+  { id: 3, title: 'Guarantor', icon: ShieldCheck },
+  { id: 4, title: 'Review & Submit', icon: Check },
 ]
 
 function formatGhanaPhone(value: string): string {
@@ -130,7 +129,7 @@ export function ClientForm() {
     }
     return {
       branch: '',
-      area: 'Accra Central',
+      area: '',
       full_name: '',
       phone_number: '',
       national_id: '',
@@ -222,25 +221,24 @@ export function ClientForm() {
   }, [formData.phone_number, formData.national_id])
 
   useEffect(() => {
-    if (currentStep === 1 && formData.phone_number && formData.national_id) {
+    if (currentStep === 0 && formData.phone_number && formData.national_id) {
       const timer = setTimeout(checkDuplicates, 800)
       return () => clearTimeout(timer)
     }
   }, [currentStep, formData.phone_number, formData.national_id, checkDuplicates])
 
   const STEP_FIELDS: Record<number, string[]> = {
-    0: ['area'],
-    1: ['full_name', 'phone_number', 'national_id', 'spouse_or_father_name', 'marital_status'],
-    2: ['present_address', 'permanent_address', 'business_type', 'market_location'],
-    3: ['religion', 'place_of_worship', 'religious_leader_name', 'religious_leader_phone'],
-    4: [
+    0: ['full_name', 'phone_number', 'national_id', 'spouse_or_father_name', 'marital_status'],
+    1: ['present_address', 'permanent_address', 'business_type', 'market_location'],
+    2: ['religion', 'place_of_worship', 'religious_leader_name', 'religious_leader_phone'],
+    3: [
       'guarantor_name',
       'guarantor_gender',
       'guarantor_phone',
       'guarantor_occupation',
       'guarantor_residential_address',
     ],
-    5: ['data_protection_consent'],
+    4: ['data_protection_consent'],
   }
 
   const stepForField = (field: string): number => {
@@ -328,7 +326,7 @@ export function ClientForm() {
           phone_number: (formData.phone_number as string).replace(/\s/g, ''),
           national_id: formData.national_id.trim(),
           branch: null,
-          area: formData.area,
+          area: formData.area?.trim() || null,
           spouse_or_father_name: formData.spouse_or_father_name?.trim() || null,
           age: formData.age ? parseInt(formData.age as any) : null,
           date_of_birth: formData.date_of_birth || null,
@@ -519,33 +517,13 @@ export function ClientForm() {
         </div>
       )}
 
-      {/* Step 0: Territory */}
+      {/* Step 0: Personal */}
       {currentStep === 0 && (
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base text-gray-900 flex items-center gap-2">
-              <MapPin className="h-4 w-4 text-blue-600" />
-              1. Operational Area
-            </CardTitle>
-            <CardDescription>Field territory for monitoring and collections.</CardDescription>
-          </CardHeader>
-          <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="area">Area / Zone / Territory *</Label>
-              <Input id="area" name="area" value={formData.area} onChange={handleChange} placeholder="e.g. Makola Market Central" required />
-              {errors.area && <p className="text-xs text-red-500">{errors.area}</p>}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Step 1: Personal */}
-      {currentStep === 1 && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base text-gray-900 flex items-center gap-2">
               <User className="h-4 w-4 text-blue-600" />
-              2. Applicant Personal Information
+              1. Applicant Personal Information
             </CardTitle>
             <CardDescription>Full KYC details as captured on the physical loan application form.</CardDescription>
           </CardHeader>
@@ -575,6 +553,10 @@ export function ClientForm() {
               {errors.national_id && <p className="text-xs text-red-500">{errors.national_id}</p>}
             </div>
             <div className="space-y-1.5">
+              <Label htmlFor="area">Area / Zone</Label>
+              <Input id="area" name="area" value={formData.area} onChange={handleChange} placeholder="e.g. Makola Market Central" />
+            </div>
+            <div className="space-y-1.5">
               <Label htmlFor="marital_status">Marital Status *</Label>
               <select id="marital_status" name="marital_status" value={formData.marital_status} onChange={handleChange}
                 className="w-full h-10 rounded-md border border-gray-300 bg-white px-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500">
@@ -599,12 +581,12 @@ export function ClientForm() {
       )}
 
       {/* Step 2: Business & Address */}
-      {currentStep === 2 && (
+      {currentStep === 1 && (
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base text-gray-900 flex items-center gap-2">
               <MapPin className="h-4 w-4 text-blue-600" />
-              3. Addresses, Business & Cashflow
+              2. Addresses, Business & Cashflow
             </CardTitle>
             <CardDescription>Residential addresses, trading stall location, and daily turnover.</CardDescription>
           </CardHeader>
@@ -638,12 +620,12 @@ export function ClientForm() {
       )}
 
       {/* Step 3: Religion */}
-      {currentStep === 3 && (
+      {currentStep === 2 && (
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base text-gray-900 flex items-center gap-2">
               <Church className="h-4 w-4 text-blue-600" />
-              4. Religion & Spiritual Leadership Reference
+              3. Religion & Spiritual Leadership Reference
             </CardTitle>
             <CardDescription>Place of worship and religious leader reference as required by Beyond Sky terms.</CardDescription>
           </CardHeader>
@@ -673,12 +655,12 @@ export function ClientForm() {
       )}
 
       {/* Step 4: Guarantor */}
-      {currentStep === 4 && (
+      {currentStep === 3 && (
         <Card className="border-indigo-200">
           <CardHeader className="pb-3 bg-indigo-50/40 rounded-t-xl border-b border-indigo-100">
             <CardTitle className="text-base text-indigo-950 flex items-center gap-2">
               <ShieldCheck className="h-4 w-4 text-indigo-600" />
-              5. Guarantor's Personal Information
+              4. Guarantor's Personal Information
             </CardTitle>
             <CardDescription className="text-indigo-700 text-xs">Complete guarantor profile backing the credit agreement.</CardDescription>
           </CardHeader>
@@ -720,12 +702,12 @@ export function ClientForm() {
       )}
 
       {/* Step 5: Review & Submit */}
-      {currentStep === 5 && (
+      {currentStep === 4 && (
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base text-gray-900 flex items-center gap-2">
               <Eye className="h-4 w-4 text-blue-600" />
-              6. Review & Confirm Registration
+              5. Review & Confirm Registration
             </CardTitle>
             <CardDescription>Please verify all details before submitting.</CardDescription>
           </CardHeader>
@@ -737,26 +719,27 @@ export function ClientForm() {
                 <p><span className="text-gray-400">Phone:</span> <span className="font-mono">{formData.phone_number}</span></p>
                 <p><span className="text-gray-400">ID:</span> <span className="font-mono">{formData.national_id}</span></p>
                 <p><span className="text-gray-400">Marital:</span> {formData.marital_status}</p>
-                <button type="button" onClick={() => setCurrentStep(1)} className="text-blue-600 hover:underline text-[11px]">Edit →</button>
+                <p><span className="text-gray-400">Area:</span> {formData.area || '—'}</p>
+                <button type="button" onClick={() => setCurrentStep(0)} className="text-blue-600 hover:underline text-[11px]">Edit →</button>
               </div>
               <div className="p-3 bg-gray-50 rounded-lg border border-gray-100 space-y-1.5">
                 <p className="font-semibold text-gray-700 text-[11px] uppercase tracking-wider">Business</p>
                 <p><span className="text-gray-400">Type:</span> <span className="font-medium">{formData.business_type}</span></p>
                 <p><span className="text-gray-400">Market:</span> {formData.market_location}</p>
-                <button type="button" onClick={() => setCurrentStep(2)} className="text-blue-600 hover:underline text-[11px]">Edit →</button>
+                <button type="button" onClick={() => setCurrentStep(1)} className="text-blue-600 hover:underline text-[11px]">Edit →</button>
               </div>
               <div className="p-3 bg-gray-50 rounded-lg border border-gray-100 space-y-1.5">
                 <p className="font-semibold text-gray-700 text-[11px] uppercase tracking-wider">Religious Reference</p>
                 <p><span className="text-gray-400">Religion:</span> {formData.religion}</p>
                 <p><span className="text-gray-400">Worship:</span> {formData.place_of_worship}</p>
                 <p><span className="text-gray-400">Leader:</span> {formData.religious_leader_name}</p>
-                <button type="button" onClick={() => setCurrentStep(3)} className="text-blue-600 hover:underline text-[11px]">Edit →</button>
+                <button type="button" onClick={() => setCurrentStep(2)} className="text-blue-600 hover:underline text-[11px]">Edit →</button>
               </div>
               <div className="p-3 bg-indigo-50/50 rounded-lg border border-indigo-100 space-y-1.5">
                 <p className="font-semibold text-indigo-800 text-[11px] uppercase tracking-wider">Guarantor</p>
                 <p><span className="text-gray-400">Name:</span> <span className="font-medium">{formData.guarantor_name}</span></p>
                 <p><span className="text-gray-400">Phone:</span> <span className="font-mono">{formData.guarantor_phone}</span></p>
-                <button type="button" onClick={() => setCurrentStep(4)} className="text-blue-600 hover:underline text-[11px]">Edit →</button>
+                <button type="button" onClick={() => setCurrentStep(3)} className="text-blue-600 hover:underline text-[11px]">Edit →</button>
               </div>
             </div>
 

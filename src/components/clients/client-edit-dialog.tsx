@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Edit3, Loader2, X } from 'lucide-react'
+import { useToast } from '@/components/ui/use-toast'
 import type { MaritalStatus } from '@/lib/supabase/database.types'
 
 interface ClientData {
@@ -28,14 +29,23 @@ interface ClientData {
   religious_leader_phone: string | null
   branch: string | null
   area: string | null
+  guarantor_name?: string | null
+  guarantor_gender?: string | null
+  guarantor_phone?: string | null
+  guarantor_occupation?: string | null
+  guarantor_employer?: string | null
+  guarantor_residential_address?: string | null
+  guarantor_business?: string | null
   emergency_contact_name?: string | null
   emergency_contact_phone?: string | null
   emergency_contact_relationship?: string | null
   notes?: string | null
 }
 
-export function ClientEditDialog({ client }: { client: ClientData }) {
+export function ClientEditDialog({ client, userRole }: { client: ClientData; userRole: string }) {
   const router = useRouter()
+  const { toast } = useToast()
+  const canEdit = ['manager', 'accountant_admin', 'supervisor', 'loan_officer'].includes(userRole)
   const [open, setOpen] = useState(false)
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState({
@@ -57,6 +67,12 @@ export function ClientEditDialog({ client }: { client: ClientData }) {
     religious_leader_phone: client.religious_leader_phone || '',
     branch: client.branch || '',
     area: client.area || '',
+    guarantor_name: client.guarantor_name || '',
+    guarantor_gender: client.guarantor_gender || 'male',
+    guarantor_phone: client.guarantor_phone || '',
+    guarantor_occupation: client.guarantor_occupation || client.guarantor_business || '',
+    guarantor_employer: client.guarantor_employer || '',
+    guarantor_residential_address: client.guarantor_residential_address || '',
     emergency_contact_name: client.emergency_contact_name || '',
     emergency_contact_phone: client.emergency_contact_phone || '',
     emergency_contact_relationship: client.emergency_contact_relationship || '',
@@ -85,16 +101,27 @@ export function ClientEditDialog({ client }: { client: ClientData }) {
           id: client.id,
           ...form,
           age: form.age ? parseInt(form.age) : null,
+          guarantor_business: form.guarantor_occupation,
         }),
       })
       if (res.ok) {
         setOpen(false)
+        toast({ title: 'Client updated', description: 'The client record was saved.' })
         router.refresh()
+      } else {
+        const data = await res.json().catch(() => ({}))
+        toast({
+          title: 'Could not save client',
+          description: data.error || 'Only a manager or super admin can edit this client.',
+          variant: 'destructive',
+        })
       }
     } finally {
       setSaving(false)
     }
   }
+
+  if (!canEdit) return null
 
   if (!open) {
     return (
@@ -145,6 +172,10 @@ export function ClientEditDialog({ client }: { client: ClientData }) {
                 <Input id="edit-age" name="age" type="number" value={form.age} onChange={handleChange} />
               </div>
               <div className="space-y-1">
+                <Label htmlFor="edit-area">Area / Zone</Label>
+                <Input id="edit-area" name="area" value={form.area} onChange={handleChange} placeholder="Optional" />
+              </div>
+              <div className="space-y-1">
                 <Label htmlFor="edit-marital">Marital Status</Label>
                 <select id="edit-marital" name="marital_status" value={form.marital_status} onChange={handleChange}
                   className="w-full h-10 rounded-md border border-gray-300 bg-white px-3 text-sm">
@@ -182,9 +213,39 @@ export function ClientEditDialog({ client }: { client: ClientData }) {
                 <Label htmlFor="edit-baddress">Business Address</Label>
                 <Input id="edit-baddress" name="business_address" value={form.business_address} onChange={handleChange} />
               </div>
+            </div>
+          </fieldset>
+
+          <fieldset className="space-y-3">
+            <legend className="text-sm font-semibold text-gray-700 mb-2">Guarantor</legend>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label htmlFor="edit-area">Area</Label>
-                <Input id="edit-area" name="area" value={form.area} onChange={handleChange} />
+                <Label htmlFor="edit-gname">Guarantor Name</Label>
+                <Input id="edit-gname" name="guarantor_name" value={form.guarantor_name} onChange={handleChange} />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="edit-gphone">Guarantor Phone</Label>
+                <Input id="edit-gphone" name="guarantor_phone" value={form.guarantor_phone} onChange={handleChange} />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="edit-ggender">Gender</Label>
+                <select id="edit-ggender" name="guarantor_gender" value={form.guarantor_gender} onChange={handleChange}
+                  className="w-full h-10 rounded-md border border-gray-300 bg-white px-3 text-sm">
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                </select>
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="edit-gocc">Occupation</Label>
+                <Input id="edit-gocc" name="guarantor_occupation" value={form.guarantor_occupation} onChange={handleChange} />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="edit-gemployer">Employer</Label>
+                <Input id="edit-gemployer" name="guarantor_employer" value={form.guarantor_employer} onChange={handleChange} />
+              </div>
+              <div className="space-y-1 sm:col-span-2">
+                <Label htmlFor="edit-gaddress">Guarantor Address</Label>
+                <Input id="edit-gaddress" name="guarantor_residential_address" value={form.guarantor_residential_address} onChange={handleChange} />
               </div>
             </div>
           </fieldset>

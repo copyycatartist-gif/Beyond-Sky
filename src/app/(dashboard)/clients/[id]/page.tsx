@@ -221,7 +221,7 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
 
         <div className="space-y-2">
           <div className="flex items-center gap-2 flex-wrap">
-            <ClientEditDialog client={client as any} />
+            <ClientEditDialog client={client as any} userRole={profile?.role || 'loan_officer'} />
 
             <ClientPrintButton />
 

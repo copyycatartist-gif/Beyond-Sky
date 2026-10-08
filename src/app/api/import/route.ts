@@ -72,7 +72,6 @@ async function handleClientsMigration(rows: any[], userId: string, adminClient: 
       const nationalId = String(row.nationalId || row.national_id || '').trim()
       if (!nationalId) throw new Error('Missing client Ghana Card / National ID')
       const area = String(row.area || '').trim()
-      if (!area) throw new Error('Missing area')
       const spouse = String(row.spouseOrFatherName || row.spouse_or_father_name || '').trim()
       if (!spouse) throw new Error('Missing husband / wife / father name')
       const presentAddress = String(row.presentAddress || row.residentialAddress || row.residential_address || '').trim()
@@ -114,7 +113,7 @@ async function handleClientsMigration(rows: any[], userId: string, adminClient: 
         .from('clients')
         .insert({
           branch: null,
-          area,
+          area: area || null,
           full_name: name,
           phone_number: phone,
           national_id: nationalId,

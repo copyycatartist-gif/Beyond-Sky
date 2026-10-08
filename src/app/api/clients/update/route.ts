@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { getCurrentUserProfile } from '@/lib/supabase/auth'
 import { rateLimit, getRateLimitHeaders } from '@/lib/rate-limit'
 import { sanitizeObject } from '@/lib/sanitize'
 
@@ -9,6 +10,14 @@ export async function PATCH(request: NextRequest) {
 
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const profile = await getCurrentUserProfile()
+  if (!profile || !['manager', 'accountant_admin', 'supervisor', 'loan_officer'].includes(profile.role || '')) {
+    return NextResponse.json(
+      { error: 'You do not have permission to edit client details' },
+      { status: 403 }
+    )
   }
 
   const rl = rateLimit(`update:${user.id}`, { maxRequests: 30, windowMs: 60000 })
@@ -33,6 +42,8 @@ export async function PATCH(request: NextRequest) {
     'religion', 'place_of_worship',
     'religious_leader_name', 'religious_leader_phone', 'branch', 'area',
     'emergency_contact_name', 'emergency_contact_phone', 'emergency_contact_relationship',
+    'guarantor_name', 'guarantor_gender', 'guarantor_phone', 'guarantor_occupation',
+    'guarantor_employer', 'guarantor_residential_address', 'guarantor_business',
     'notes', 'status',
   ]
 
