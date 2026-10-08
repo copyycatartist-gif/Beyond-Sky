@@ -472,8 +472,8 @@ export default async function LoanDetailPage({ params }: { params: { id: string 
           </CardTitle>
           <CardDescription className="text-[11px]">
             {totalDeductions > 0
-              ? 'This older contract still has an upfront deduction on file.'
-              : 'The full principal is paid out. Repayments are due on Sunday.'}
+              ? 'The processing fee is taken before the cash is paid out. Repayments are due on Sunday.'
+              : 'Repayments are due on Sunday.'}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-2 text-xs">
@@ -482,8 +482,8 @@ export default async function LoanDetailPage({ params }: { params: { id: string 
             <span className="font-bold text-gray-900">{formatCurrency(principal)}</span>
           </div>
           {totalDeductions > 0 && (
-            <div className="flex justify-between text-amber-800">
-              <span>Earlier upfront deduction:</span>
+            <div className="flex justify-between text-rose-700">
+              <span>Processing fee:</span>
               <span className="font-semibold">−{formatCurrency(totalDeductions)}</span>
             </div>
           )}

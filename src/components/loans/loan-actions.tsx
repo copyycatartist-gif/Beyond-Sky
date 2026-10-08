@@ -334,9 +334,15 @@ export function LoanActions({
           <div className="space-y-4 py-2 text-xs">
             <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 space-y-1.5">
               <div className="flex justify-between">
-                <span className="text-gray-500">Principal paid to client:</span>
+                <span className="text-gray-500">Principal:</span>
                 <span className="font-bold text-gray-900">{formatCurrency(loan.principal)}</span>
               </div>
+              {totalDeductions > 0 && (
+                <div className="flex justify-between text-rose-700">
+                  <span>Processing fee:</span>
+                  <span>−{formatCurrency(totalDeductions)}</span>
+                </div>
+              )}
               {oldLoanBalance > 0 && (
                 <div className="flex justify-between text-purple-700 font-medium">
                   <span>Refinanced Loan Netting:</span>

@@ -909,8 +909,8 @@ export function GroupCollectionMatrix({
         `Group: ${groupName} (${groupNumber})`,
         `Branch: ${branch}`,
         `Area: ${area}`,
-        `Meeting Day: ${meetingDay}`,
-        `Meeting Place: ${meetingPlace}`,
+        `Branch: ${branch}`,
+        `Area: ${area}`,
         `Exported: ${formatDate(new Date().toISOString(), 'dd MMM yyyy HH:mm')}`,
       ]
         .map(escapeCsv)
@@ -1418,7 +1418,7 @@ export function GroupCollectionMatrix({
                 Group: <span className="text-blue-700 print:text-black">{groupName}</span> ({groupNumber})
               </p>
               <p className="text-gray-500 print:text-black">
-                Meeting Day: <span className="font-semibold text-gray-700">{meetingDay}</span> | Venue: {meetingPlace}
+                Branch: {branch} | Area: {area}
               </p>
               <p className="text-gray-500 print:text-black">Printed: {formatDate(new Date().toISOString(), 'dd MMM yyyy')}</p>
             </div>
@@ -1724,7 +1724,7 @@ export function GroupCollectionMatrix({
             </div>
           </div>
           <p className="mt-6 text-[10px] font-sans text-gray-600">
-            Group: {groupName} ({groupNumber}) | Meeting Day: {meetingDay} | Venue: {meetingPlace} | Branch: {branch} | Area: {area}
+            Group: {groupName} ({groupNumber}) | Branch: {branch} | Area: {area}
             {lockedWeeks.length > 0 && ` | Signed-off weeks: ${lockedWeeks.join(', ')}`}
           </p>
         </div>

@@ -18,9 +18,9 @@ export default async function SettingsPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Business settings</h1>
-        <p className="text-gray-500 text-sm mt-0.5">
-          Weekly terms, loan size, and the income note shown to approvers. Monthly rates stay on the application.
-        </p>
+          <p className="text-gray-500 text-sm mt-0.5">
+            Weekly terms, the processing fee, loan size, and the income note shown to approvers.
+          </p>
       </div>
 
       <SettingsForm initialSettings={settings || []} />

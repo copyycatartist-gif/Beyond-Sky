@@ -7,10 +7,10 @@
  */
 
 export const SECURITY_DEPOSIT_PCT = 0
-export const PROCESSING_FEE_PCT = 0
+export const PROCESSING_FEE_PCT = 0.05
 export const LOAN_RISK_FUND_PCT = 0
-export const TOTAL_DEDUCTION_PCT = 0
-export const NET_DISBURSEMENT_PCT = 1
+export const TOTAL_DEDUCTION_PCT = 0.05
+export const NET_DISBURSEMENT_PCT = 0.95
 export const PENAL_RATE_MONTHLY = 5.0 // 5% per month over prevailing rate
 
 /** Flat monthly rates the client may request. Approver may change among these. */
@@ -35,8 +35,8 @@ export interface DeductionBreakdown {
 }
 
 /**
- * Upfront deductions are no longer taken. The helpers stay so older screens
- * can still show a stored historical figure when one is passed in.
+ * The only upfront charge is the processing fee. Deposit and risk fund stay at zero
+ * unless a caller passes an explicit percentage for an older contract.
  */
 export function computeDeductions(
   principal: number,

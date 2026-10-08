@@ -13,7 +13,6 @@ import {
   Users,
   CreditCard,
   FileText,
-  UsersRound,
   CheckCircle2,
   AlertCircle,
   Loader2,
@@ -21,7 +20,7 @@ import {
   FileSpreadsheet,
 } from 'lucide-react'
 
-type MigrationType = 'group_13week_ledger' | 'clients' | 'transactions' | 'loans' | 'groups'
+type MigrationType = 'group_13week_ledger' | 'clients' | 'transactions' | 'loans'
 
 interface MigrationTabConfig {
   id: MigrationType
@@ -69,15 +68,6 @@ const MIGRATION_CONFIGS: Record<MigrationType, MigrationTabConfig> = {
     templateFileName: 'beyond_sky_active_loans_template.csv',
     templateHeaders: 'clientAccountNumber,principal,disbursementDate,cycleNumber,termWeeks,previousLoanAmount,totalPaidSoFar\n',
     sampleRow: 'BSM-000001-8,2000,2026-09-01,1,13,0,630.00\nBSM-000002-6,3000,2026-08-15,2,13,2000,1400.00\n',
-  },
-  groups: {
-    id: 'groups',
-    label: 'Solidarity Groups',
-    icon: UsersRound,
-    title: 'Solidarity Lending Groups Migration',
-    templateFileName: 'beyond_sky_groups_template.csv',
-    templateHeaders: 'groupName,branch,area,meetingDay,meetingPlace,maxMembers,memberAccountNumbers\n',
-    sampleRow: 'Makola Peace Traders Group,Makola Branch,Accra Central,Monday,Makola Market Shed 4,15,"BSM-000001-8, BSM-000002-6"\nKaneshie Star Sellers,Kaneshie Branch,Kaneshie Market,Wednesday,Kaneshie Complex Hall,15,"BSM-000003-4"\n',
   },
 }
 

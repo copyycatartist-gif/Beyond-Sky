@@ -513,7 +513,7 @@ export function RepaymentForm({
             <UsersRound className="h-12 w-12 mx-auto text-gray-300 mb-3" />
             <h3 className="text-base font-bold text-gray-900">No Active Solidarity Groups</h3>
             <p className="text-xs text-gray-500 mt-1 max-w-md mx-auto">
-              Create solidarity groups and attach member credit facilities to use the fast 13-week batch collection workflow.
+              Open a disbursement group to record the Sunday collections for its members.
             </p>
           </Card>
         ) : (

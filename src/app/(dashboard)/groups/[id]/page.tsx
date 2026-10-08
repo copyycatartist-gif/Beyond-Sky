@@ -30,9 +30,7 @@ import { groupStatusBadgeClass } from '@/lib/group-status'
 import { GroupArchiveButton, GroupPrintButton } from '@/components/groups/group-page-actions'
 import { GroupEditDialog } from '@/components/groups/group-edit-dialog'
 import { GroupSmsBroadcast } from '@/components/groups/group-sms-broadcast'
-import { GroupMeetingsTab } from '@/components/groups/group-meetings-tab'
 import { GroupNotesTab } from '@/components/groups/group-notes-tab'
-import { GroupWaitlistTab } from '@/components/groups/group-waitlist-tab'
 import { GroupDocumentsTab } from '@/components/groups/group-documents-tab'
 import { GroupHistoryTab } from '@/components/groups/group-history-tab'
 
@@ -57,6 +55,10 @@ export default async function GroupDetailPage({ params }: { params: { id: string
   }
 
   const g = group as any
+
+  if (g.group_type !== 'disbursement') {
+    notFound()
+  }
 
   // Wave 2: everything that depends only on the group id — fetched in parallel
   const [creatorRes, membersRes, meetingsRes, notesRes, waitlistRes, documentsRes, auditRes, allClientsRes] = await Promise.all([
@@ -429,11 +431,7 @@ export default async function GroupDetailPage({ params }: { params: { id: string
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-500 mt-1">
                 <span className="inline-flex items-center gap-1">
                   <MapPin className="h-3.5 w-3.5" />
-                  {g.area || '—'}
-                </span>
-                <span className="inline-flex items-center gap-1">
-                  <Calendar className="h-3.5 w-3.5" />
-                  Meets {g.meeting_day || '—'} @ {g.meeting_place || '—'}
+                  {g.area || 'Disbursement cohort'}
                 </span>
                 {leader && (
                   <span className="inline-flex items-center gap-1">
@@ -504,9 +502,9 @@ export default async function GroupDetailPage({ params }: { params: { id: string
             <UserCheck className="h-6 w-6" />
           </div>
           <div>
-            <p className="text-xs text-gray-500 font-medium">Meetings Held</p>
-            <p className="text-2xl font-black text-emerald-700">{meetings.length}</p>
-            <p className="text-[11px] text-gray-400">{waitlistEntries.length} on waitlist</p>
+            <p className="text-xs text-gray-500 font-medium">Collection</p>
+            <p className="text-2xl font-black text-emerald-700">{memberSchedules.length}</p>
+            <p className="text-[11px] text-gray-400">Loans on this sheet</p>
           </div>
         </Card>
 
@@ -556,8 +554,8 @@ export default async function GroupDetailPage({ params }: { params: { id: string
               groupId={g.id}
               groupName={g.name}
               groupNumber={g.group_number}
-              meetingDay={g.meeting_day || 'Weekly'}
-              meetingPlace={g.meeting_place || 'Market Central'}
+              meetingDay=""
+              meetingPlace=""
               branch={g.branch || 'Makola Branch'}
               area={g.area || 'Accra Central'}
               memberSchedules={memberSchedules.filter((row) => row.paymentFrequency !== 'monthly')}
@@ -570,8 +568,8 @@ export default async function GroupDetailPage({ params }: { params: { id: string
               groupId={g.id}
               groupName={g.name}
               groupNumber={g.group_number}
-              meetingDay={g.meeting_day || 'Monthly'}
-              meetingPlace={g.meeting_place || 'Market Central'}
+              meetingDay=""
+              meetingPlace=""
               branch={g.branch || 'Makola Branch'}
               area={g.area || 'Accra Central'}
               memberSchedules={memberSchedules.filter((row) => row.paymentFrequency === 'monthly')}
@@ -588,29 +586,6 @@ export default async function GroupDetailPage({ params }: { params: { id: string
             maxMembers={g.max_members}
             currentMembers={formattedMembers}
             availableClients={availableClients}
-          />
-        </TabsContent>
-
-        <TabsContent value="meetings" className="space-y-4 print:hidden">
-          <GroupMeetingsTab
-            groupId={g.id}
-            groupName={g.name}
-            defaultPlace={g.meeting_place ?? null}
-            meetings={meetings}
-            activeMembers={meetingMembers}
-            clientNames={clientNames}
-            canManage={canManage}
-          />
-        </TabsContent>
-
-        <TabsContent value="waitlist" className="space-y-4 print:hidden">
-          <GroupWaitlistTab
-            groupId={g.id}
-            groupName={g.name}
-            entries={waitlistEntries}
-            candidates={waitlistCandidates}
-            slotsRemaining={slotsRemaining}
-            canManage={canManage}
           />
         </TabsContent>
 

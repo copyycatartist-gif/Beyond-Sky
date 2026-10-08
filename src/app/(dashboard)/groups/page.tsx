@@ -79,6 +79,7 @@ export default async function GroupsPage({ searchParams }: GroupsPageProps) {
       { count: 'exact' } as any
     )
     .order(sort as any, { ascending: order === 'asc' })
+    .eq('group_type', 'disbursement')
 
   if (search) {
     groupsQuery = groupsQuery.or(

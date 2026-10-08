@@ -31,6 +31,7 @@ export default async function NewLoanPage() {
 
   const settings = {
     interestMultiplier: parseFloat(settingsMap['interest_multiplier'] || '1.365'),
+    feePercentage: parseFloat(settingsMap['processing_fee_percentage'] || settingsMap['fee_percentage'] || '0.05'),
     termWeeks: parseInt(settingsMap['term_weeks'] || '13'),
     minLoan: parseFloat(settingsMap['min_loan_amount'] || '1000'),
     maxLoan: parseFloat(settingsMap['max_loan_amount'] || '5000'),
@@ -86,7 +87,7 @@ export default async function NewLoanPage() {
           <h1 className="text-2xl font-bold text-gray-900 tracking-tight">New Loan Application</h1>
           <p className="text-gray-500 text-sm">
             Weekly loans use {settings.interestMultiplier}x over {settings.termWeeks} Sundays.
-            Monthly loans use 7%, 10%, 15%, or 30% for 1 to 6 months. The full principal is paid out.
+            A {Math.round(settings.feePercentage * 10000) / 100}% processing fee is taken from the principal.
             Limits: {settings.minLoan.toLocaleString()}–{settings.maxLoan.toLocaleString()} GH¢.
           </p>
         </div>

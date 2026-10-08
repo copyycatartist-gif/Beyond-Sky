@@ -110,6 +110,9 @@ export function PrintableLoanContract({ loan, client, settings }: LoanContractPr
     return isNaN(v) ? fallback : v
   }
   const principal = num(loan.principal, 0)
+  const processingFee = num(loan.processing_fee_amount, num(loan.total_deductions, 0))
+  const processingFeePct = principal > 0 ? round2((processingFee / principal) * 100) : 0
+  const cashToClient = num(loan.net_disbursement_amount, round2(principal - processingFee))
   const branch = txt(client.branch || settings['default_branch'] || null)
 
   // ---- Rates / terms ----
@@ -384,7 +387,8 @@ export function PrintableLoanContract({ loan, client, settings }: LoanContractPr
             {/* Contract Terms Continuation */}
             <div className="mt-4 space-y-2.5 text-justify text-[12.5px] leading-relaxed">
               <p className="break-inside-avoid">
-                The full principal of <strong>GH¢ {principal.toFixed(2)}</strong> is paid to me.
+                A processing fee of <strong>{processingFeePct}% (GH¢ {processingFee.toFixed(2)})</strong> is deducted from the principal.
+                I receive <strong>GH¢ {cashToClient.toFixed(2)}</strong>.
                 Repayments are due on Sunday, beginning the Sunday after the loan is disbursed.
               </p>
               <p className="break-inside-avoid">

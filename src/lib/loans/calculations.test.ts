@@ -9,13 +9,13 @@ import {
 } from './calculations'
 
 describe('computeDeductions', () => {
-  test('charges nothing unless a percentage is passed in', () => {
+  test('charges the 5% processing fee by default', () => {
     const d = computeDeductions(2000)
     expect(d.securityDepositAmount).toBe(0)
-    expect(d.processingFeeAmount).toBe(0)
+    expect(d.processingFeeAmount).toBe(100)
     expect(d.loanRiskFundAmount).toBe(0)
-    expect(d.totalDeductions).toBe(0)
-    expect(TOTAL_DEDUCTION_PCT).toBe(0)
+    expect(d.totalDeductions).toBe(100)
+    expect(TOTAL_DEDUCTION_PCT).toBe(0.05)
   })
 
   test('handles zero and non-numeric principal', () => {
@@ -97,8 +97,8 @@ describe('calculateLoan', () => {
       eligibilityRatio: 0.3,
       refinanceBalance: 0,
     })
-    expect(c.totalDeductions).toBe(0)
-    expect(c.netDisbursement).toBe(2000)
+    expect(c.totalDeductions).toBe(100)
+    expect(c.netDisbursement).toBe(1900)
     expect(c.totalRepayable).toBe(2730)
     expect(c.weeklyInstallment).toBe(210)
     expect(c.eligibility.flag).toBe('eligible')

@@ -531,7 +531,6 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
                       <div>
                         <p className="font-bold text-gray-900 font-mono">{m.groups?.group_number}</p>
                         <p className="font-medium text-gray-800 text-sm">{m.groups?.name}</p>
-                        <p className="text-[11px] text-gray-500 mt-0.5">Meeting: {m.groups?.meeting_day || 'Weekly'} • {m.groups?.meeting_place || 'Market Pavilion'}</p>
                       </div>
                       <Link href={`/groups/${m.groups?.id}`}>
                         <Button variant="outline" size="sm" className="text-xs h-7">View Group</Button>

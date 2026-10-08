@@ -10,10 +10,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { formatDate, humanizeStatus } from '@/lib/utils'
 import { useToast } from '@/components/ui/use-toast'
 import {
-  Search, PlusCircle, Users, Users2, Eye, Pencil, UserPlus, Ban, Printer,
+  Search, Users, Users2, Eye, Pencil, UserPlus, Ban, Printer,
   MoreHorizontal, X, ChevronUp, ChevronDown, ChevronsUpDown, ChevronLeft,
   ChevronRight, ChevronsLeft, ChevronsRight, Download, Grid, List,
-  CheckCircle2, AlertTriangle, Clock, PauseCircle, Sparkles, Calendar,
+  CheckCircle2, AlertTriangle, Clock, PauseCircle, Sparkles,
   MapPin, Crown, RefreshCw, CircleSlash, Filter, Columns3,
   Bookmark, BookmarkCheck, History, Trash2, WifiOff, Gauge, Link2, User,
   Building2, Loader2, ArrowUpDown
@@ -100,7 +100,6 @@ const ALL_COLUMNS: ColumnDef[] = [
   { key: 'capacity', label: 'Capacity', locked: false },
   { key: 'status', label: 'Status', locked: false },
   { key: 'branch', label: 'Area', locked: false },
-  { key: 'meeting', label: 'Meeting Day', locked: false },
   { key: 'leader', label: 'Leader', locked: false },
   { key: 'formed', label: 'Formed', locked: false },
   { key: 'created', label: 'Created', locked: false },
@@ -606,19 +605,6 @@ export function GroupList({
       </select>
 
       <select
-        value={type}
-        onChange={(e) => updateURL({ type: e.target.value })}
-        className="h-9 rounded-md border border-gray-300 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-        aria-label="Filter by group type"
-      >
-        <option value="all">All Types</option>
-        <option value="solidarity">Disbursement</option>
-        <option value="disbursement">Auto cohort</option>
-        <option value="individual">Individual</option>
-        <option value="cooperative">Cooperative</option>
-      </select>
-
-      <select
         value={SORT_OPTIONS.some(o => o.value === sortSelectValue) ? sortSelectValue : 'created_at:desc'}
         onChange={(e) => handleSortSelect(e.target.value)}
         className="h-9 rounded-md border border-gray-300 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -724,7 +710,7 @@ export function GroupList({
           ? `Nothing matches "${search}". Try a different name or group number.`
           : hasActiveFilter
             ? 'No groups match the current filters. Try widening your search.'
-            : 'Get started by creating your first solidarity lending group.'}
+            : 'A disbursement group appears here when a loan is paid out.'}
       </p>
       <div className="flex items-center gap-2 mt-4 no-print">
         {hasActiveFilter && (
@@ -736,13 +722,6 @@ export function GroupList({
           >
             <RefreshCw className="h-3 w-3" /> Clear filters
           </Button>
-        )}
-        {canManage && !search && (
-          <Link href="/groups/new">
-            <Button size="sm" className="h-8 text-xs bg-blue-600 hover:bg-blue-700 gap-1">
-              <PlusCircle className="h-3.5 w-3.5" /> Create Group
-            </Button>
-          </Link>
         )}
       </div>
     </div>
@@ -826,8 +805,8 @@ export function GroupList({
               <span className="truncate">{group.area || '—'}</span>
             </div>
             <div className="flex items-center gap-1 truncate">
-              <Calendar className="h-3 w-3 text-gray-400 shrink-0" />
-              <span className="capitalize truncate">{group.meeting_day || '—'}</span>
+              <MapPin className="h-3 w-3 text-gray-400 shrink-0" />
+              <span className="truncate">{group.branch || group.area || 'Disbursement cohort'}</span>
             </div>
             <div className="flex items-center gap-1 truncate">
               <Crown className="h-3 w-3 text-amber-400 shrink-0" />
@@ -1108,17 +1087,6 @@ export function GroupList({
               <span className="hidden lg:inline">CSV</span>
             </Button>
           )}
-
-          {/* Create group (managers only) */}
-          {canManage && (
-            <Link href="/groups/new">
-              <Button className="h-10 bg-blue-600 hover:bg-blue-700 font-medium gap-1.5">
-                <PlusCircle className="h-4 w-4" />
-                <span className="hidden sm:inline">Create Lending Group</span>
-                <span className="sm:hidden">New</span>
-              </Button>
-            </Link>
-          )}
         </div>
       </div>
 
@@ -1235,7 +1203,6 @@ export function GroupList({
                         </TableHead>
                       )}
                       {visibleColumns.has('branch') && <TableHead scope="col">Area</TableHead>}
-                      {visibleColumns.has('meeting') && <TableHead className="hidden lg:table-cell" scope="col">Meeting Day</TableHead>}
                       {visibleColumns.has('leader') && <TableHead className="hidden xl:table-cell" scope="col">Leader</TableHead>}
                       {visibleColumns.has('formed') && (
                         <TableHead
@@ -1325,18 +1292,6 @@ export function GroupList({
                                   <MapPin className="h-3 w-3 text-gray-400 shrink-0" />
                                   <span className="truncate max-w-[120px]">{group.area || '—'}</span>
                                 </div>
-                              </TableCell>
-                            )}
-                            {visibleColumns.has('meeting') && (
-                              <TableCell className="hidden lg:table-cell text-xs text-gray-600">
-                                {group.meeting_day ? (
-                                  <div className="flex items-center gap-1">
-                                    <Calendar className="h-3 w-3 text-gray-400" />
-                                    <span className="capitalize">{group.meeting_day}</span>
-                                  </div>
-                                ) : (
-                                  <span className="text-gray-300">—</span>
-                                )}
                               </TableCell>
                             )}
                             {visibleColumns.has('leader') && (
@@ -1528,12 +1483,6 @@ export function GroupList({
         </div>
       )}
 
-      {/* Mobile FAB */}
-      {canManage && (
-        <Link href="/groups/new" className="fab sm:hidden no-print" aria-label="Create new lending group">
-          <PlusCircle className="h-6 w-6 text-white" />
-        </Link>
-      )}
     </div>
   )
 }

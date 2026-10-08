@@ -123,7 +123,10 @@ export async function POST(request: Request) {
       case 'loans':
         return await handleLoansMigration(rows, user.id, adminClient)
       case 'groups':
-        return await handleGroupsMigration(rows, user.id, adminClient)
+        return NextResponse.json(
+          { error: 'Solidarity groups are no longer used. Disbursement groups are created when a loan is paid out.' },
+          { status: 400 }
+        )
       case 'legacy_composite':
       default:
         return await handleLegacyCompositeMigration(rows, user.id, adminClient)
@@ -421,7 +424,7 @@ async function handleLoansMigration(rows: any[], userId: string, adminClient: an
   ;(settingsRows || []).forEach((r: any) => { settingsMap[r.key] = r.value })
 
   const defaultMultiplier = parseFloat(settingsMap['interest_multiplier'] || '1.365')
-  const defaultFeePct = 0
+  const defaultFeePct = parseFloat(settingsMap['processing_fee_percentage'] || settingsMap['fee_percentage'] || '0.05')
   const defaultSecPct = 0
   const defaultRiskPct = 0
   const defaultTerm = parseInt(settingsMap['term_weeks'] || '13', 10)
@@ -562,106 +565,6 @@ async function handleLoansMigration(rows: any[], userId: string, adminClient: an
 }
 
 /**
- * 4. Solidarity Groups Migration
- * Bulk creates lending groups and links client members
- */
-async function handleGroupsMigration(rows: any[], userId: string, adminClient: any) {
-  const results = {
-    total: rows.length,
-    successCount: 0,
-    failedCount: 0,
-    importedItems: [] as Array<{ row: number; groupName: string; groupNumber: string; memberCount: number }>,
-    errors: [] as Array<{ row: number; identifier: string; error: string }>,
-  }
-
-  for (let i = 0; i < rows.length; i++) {
-    const row = rows[i]
-    const rowNum = i + 1
-    const groupName = String(row.groupName || row.name || '').trim()
-
-    try {
-      if (!groupName) throw new Error('Missing group name')
-
-      const branch = String(row.branch || 'Makola Branch').trim()
-      const area = String(row.area || 'Central Area').trim()
-      const meetingDay = String(row.meetingDay || row.meeting_day || 'Monday').trim()
-      const meetingPlace = String(row.meetingPlace || row.meeting_place || 'Makola Market Shed').trim()
-      const maxMembers = parseInt(row.maxMembers || row.max_members || '15', 10)
-
-      // Create Group
-      const { data: newGroup, error: groupErr } = await adminClient
-        .from('groups')
-        .insert({
-          name: groupName,
-          branch,
-          area,
-          meeting_day: meetingDay,
-          meeting_place: meetingPlace,
-          max_members: Math.min(15, Math.max(1, maxMembers)),
-          status: 'active',
-          created_by: userId,
-        })
-        .select('id, name, group_number')
-        .single()
-
-      if (groupErr) throw groupErr
-
-      // Parse member account numbers
-      const rawMembers = String(row.memberAccountNumbers || row.members || '').trim()
-      let addedMemberCount = 0
-
-      if (rawMembers) {
-        const accountNumbers = rawMembers
-          .split(/[,;\n]+/)
-          .map((s) => s.trim())
-          .filter(Boolean)
-
-        for (const accNum of accountNumbers.slice(0, 15)) {
-          const { data: client } = await adminClient
-            .from('clients')
-            .select('id')
-            .eq('account_number', accNum)
-            .maybeSingle()
-
-          if (client) {
-            const { error: memberErr } = await adminClient
-              .from('group_members')
-              .insert({
-                group_id: newGroup.id,
-                client_id: client.id,
-                date_joined: new Date().toISOString().split('T')[0],
-              })
-            if (!memberErr) addedMemberCount++
-          }
-        }
-      }
-
-      results.successCount++
-      results.importedItems.push({
-        row: rowNum,
-        groupName: newGroup.name,
-        groupNumber: newGroup.group_number,
-        memberCount: addedMemberCount,
-      })
-    } catch (err: any) {
-      results.failedCount++
-      results.errors.push({
-        row: rowNum,
-        identifier: groupName || `Row ${rowNum}`,
-        error: err.message || 'Failed to create group',
-      })
-    }
-  }
-
-  return NextResponse.json({
-    success: true,
-    migrationType: 'groups',
-    message: `Solidarity Groups Migration completed: ${results.successCount} groups formed, ${results.failedCount} failed.`,
-    results,
-  })
-}
-
-/**
  * 5. Legacy Composite Migration (Backwards Compatibility)
  * Handles legacy CSV containing client + loan + transaction in one row
  */
@@ -679,6 +582,7 @@ async function handleLegacyCompositeMigration(rows: any[], userId: string, admin
   ;(settingsRows || []).forEach((r: any) => { settingsMap[r.key] = r.value })
 
   const multiplier = parseFloat(settingsMap['interest_multiplier'] || '1.365')
+  const feePct = parseFloat(settingsMap['processing_fee_percentage'] || settingsMap['fee_percentage'] || '0.05')
   const term = parseInt(settingsMap['term_weeks'] || '13', 10)
 
   for (let i = 0; i < rows.length; i++) {
@@ -722,16 +626,17 @@ async function handleLegacyCompositeMigration(rows: any[], userId: string, admin
 
       // Create Active Loan
       const disbDate = row.disbursementDate || new Date().toISOString().split('T')[0]
+      const fee = Math.round(principal * feePct * 100) / 100
       const totalRepayable = Math.round(principal * multiplier * 100) / 100
       const weekly = Math.round((totalRepayable / term) * 100) / 100
-      const netDisbursed = principal
+      const netDisbursed = Math.round((principal - fee) * 100) / 100
 
       const { data: loan, error: loanErr } = await adminClient
         .from('loans')
         .insert({
           client_id: client.id,
           principal,
-          fee_amount: 0,
+          fee_amount: fee,
           interest_multiplier: multiplier,
           total_repayable: totalRepayable,
           weekly_installment: weekly,
@@ -759,6 +664,19 @@ async function handleLegacyCompositeMigration(rows: any[], userId: string, admin
         recorded_by: userId,
         transaction_date: disbDate,
       })
+
+      if (fee > 0) {
+        await adminClient.from('transactions').insert({
+          loan_id: loan.id,
+          client_id: client.id,
+          type: 'fee',
+          amount: fee,
+          direction: 'credit',
+          method: 'cash',
+          recorded_by: userId,
+          transaction_date: disbDate,
+        })
+      }
 
       const totalPaidSoFar = parseFloat(row.totalPaid || '0')
       if (!isNaN(totalPaidSoFar) && totalPaidSoFar > 0) {
@@ -819,7 +737,7 @@ async function handleGroup13WeekLedgerMigration(rows: any[], userId: string, adm
   })
 
   const multiplier = parseFloat(settingsMap['interest_multiplier'] || '1.365')
-  const feePct = 0
+  const feePct = parseFloat(settingsMap['processing_fee_percentage'] || settingsMap['fee_percentage'] || '0.05')
   const secPct = 0
   const riskPct = 0
   const termWeeks = 13
@@ -865,10 +783,9 @@ async function handleGroup13WeekLedgerMigration(rows: any[], userId: string, adm
               name: groupName,
               branch: 'Makola Branch',
               area: 'Accra Central',
-              meeting_day: 'Weekly',
-              meeting_place: 'Market Shed',
-              max_members: 15,
+              max_members: 500,
               status: 'active',
+              group_type: 'disbursement',
               created_by: userId,
             })
             .select('id')

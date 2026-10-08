@@ -16,12 +16,7 @@ interface SettingRow {
   description: string | null
 }
 
-const DEDUCTION_KEYS = [
-  'fee_percentage',
-  'security_deposit_percentage',
-  'processing_fee_percentage',
-  'loan_risk_fund_percentage',
-]
+const UNUSED_DEDUCTION_KEYS = ['security_deposit_percentage', 'loan_risk_fund_percentage']
 
 export function SettingsForm({ initialSettings }: { initialSettings: SettingRow[] }) {
   const router = useRouter()
@@ -46,8 +41,11 @@ export function SettingsForm({ initialSettings }: { initialSettings: SettingRow[
 
     try {
       const payload = { ...settingsValues }
-      for (const key of DEDUCTION_KEYS) {
+      for (const key of UNUSED_DEDUCTION_KEYS) {
         if (key in payload) payload[key] = '0'
+      }
+      if (payload.processing_fee_percentage) {
+        payload.fee_percentage = payload.processing_fee_percentage
       }
 
       const res = await fetch('/api/settings', {
@@ -74,32 +72,6 @@ export function SettingsForm({ initialSettings }: { initialSettings: SettingRow[
 
   return (
     <form onSubmit={handleSubmit} className="max-w-3xl space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base text-gray-900">How a loan works now</CardTitle>
-          <CardDescription className="text-xs leading-relaxed">
-            The client receives the full principal. There is no security deposit, processing fee, or risk-fund deduction.
-            The first payment is the next Sunday after disbursement. A loan paid out on a Sunday starts the following Sunday.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-          <div className="rounded-lg border border-gray-200 p-3 space-y-1">
-            <p className="font-semibold text-gray-900">Weekly</p>
-            <p className="text-xs text-gray-600 leading-relaxed">
-              Flat interest from the multiplier below, spread over the week count. Every installment is due on Sunday.
-              The approver does not change this rate.
-            </p>
-          </div>
-          <div className="rounded-lg border border-gray-200 p-3 space-y-1">
-            <p className="font-semibold text-gray-900">Monthly</p>
-            <p className="text-xs text-gray-600 leading-relaxed">
-              The client chooses 1 to 6 months and a flat rate of 7%, 10%, 15%, or 30%. The approver can change that rate
-              before approval. Each installment falls on a Sunday.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-
       <Card>
         <CardHeader>
           <CardTitle className="text-base text-gray-900">Weekly loan</CardTitle>
@@ -132,6 +104,30 @@ export function SettingsForm({ initialSettings }: { initialSettings: SettingRow[
               required
             />
             <p className="text-[11px] text-gray-400">Default is 13 weekly Sunday payments.</p>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="processing_fee_percentage">Processing fee (%)</Label>
+            <Input
+              id="processing_fee_percentage"
+              type="number"
+              step="0.01"
+              min="0"
+              max="100"
+              value={(() => {
+                const raw = parseFloat(
+                  settingsValues['processing_fee_percentage'] || settingsValues['fee_percentage'] || '0.05'
+                )
+                return Number.isFinite(raw) ? String(Math.round(raw * 10000) / 100) : '5'
+              })()}
+              onChange={(e) => {
+                const pct = parseFloat(e.target.value)
+                const decimal = Number.isFinite(pct) ? String(pct / 100) : '0.05'
+                handleChange('processing_fee_percentage', decimal)
+                handleChange('fee_percentage', decimal)
+              }}
+              required
+            />
+            <p className="text-[11px] text-gray-400">Taken from the principal before cash is paid out. 5 means 5%.</p>
           </div>
         </CardContent>
       </Card>

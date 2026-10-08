@@ -82,6 +82,7 @@ export function LoanApplicationForm({
   clients: ClientOption[]
   settings: {
     interestMultiplier: number
+    feePercentage: number
     termWeeks: number
     minLoan: number
     maxLoan: number
@@ -215,8 +216,9 @@ export function LoanApplicationForm({
         dailyIncome: 0,
         eligibilityRatio: settings.eligibilityRatio,
         refinanceBalance: isRefinancing ? existingBalance : 0,
+        deductionPct: { processingFee: settings.feePercentage },
       }),
-    [principal, activeMultiplier, activeTerm, settings.eligibilityRatio, isRefinancing, existingBalance, isMonthly]
+    [principal, activeMultiplier, activeTerm, settings.eligibilityRatio, settings.feePercentage, isRefinancing, existingBalance, isMonthly]
   )
 
   const schedule = useMemo(
@@ -703,11 +705,15 @@ export function LoanApplicationForm({
                 3. Cash to the client and the Sunday schedule
               </CardTitle>
               <CardDescription className="text-xs">
-                The full principal is paid out. The first installment is the next Sunday after disbursement.
+                A processing fee is taken from the principal. The first installment is the next Sunday after disbursement.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3 text-xs">
-              {summaryRow('Principal paid to the client:', formatCurrency(calc.principal), true)}
+              {summaryRow('Principal:', formatCurrency(calc.principal), true)}
+              {summaryRow(
+                `Processing fee (${Math.round(calc.processingFeePct * 1000) / 10}%):`,
+                `−${formatCurrency(calc.processingFeeAmount)}`
+              )}
 
               {isRefinancing && calc.refinanceBalance > 0 && (
                 <div className="flex justify-between py-1.5 bg-purple-100 px-2 rounded font-medium text-purple-900">

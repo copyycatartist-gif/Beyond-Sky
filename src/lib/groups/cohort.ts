@@ -44,11 +44,11 @@ export function disbursementCohort(disbursedOn: Date, frequency: 'weekly' | 'mon
     year: 'numeric',
     timeZone: 'UTC',
   })
-  return {
-    key: `week:${monday}`,
-    name: `Disbursement week of ${label}`,
-    meetingDay: 'Monday',
-  }
+    return {
+      key: `week:${monday}`,
+      name: `Disbursement week of ${label}`,
+      meetingDay: null as string | null,
+    }
 }
 
 /** Find or create the disbursement cohort and add the client. Throws if it cannot. */
@@ -89,7 +89,6 @@ export async function assignDisbursementGroup(
         status: 'active',
         max_members: 500,
         cohort_key: cohort.key,
-        meeting_day: cohort.meetingDay,
         area: 'Disbursement cohort',
         created_by: input.actorId,
       } as never)
