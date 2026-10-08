@@ -89,7 +89,6 @@ const ALL_COLUMNS = [
   { key: 'client', label: 'Client' },
   { key: 'phone_id', label: 'Phone / ID' },
   { key: 'business', label: 'Business & Location' },
-  { key: 'income', label: 'Daily Income' },
   { key: 'status', label: 'Status' },
   { key: 'tier', label: 'Tier' },
   { key: 'risk', label: 'Risk Score' },
@@ -142,7 +141,6 @@ function computeRiskScore(client: Client): { score: number; label: string; color
   if (client.is_watchlisted) score += 25
   if (client.is_dormant) score += 15
   if (client.profile_completeness < 50) score += 10
-  if (client.daily_business_income < 50) score += 10
   const activeLoans = (client.loans || []).filter(l => l.status === 'active').length
   if (activeLoans > 2) score += 15
   else if (activeLoans > 1) score += 5
@@ -152,13 +150,6 @@ function computeRiskScore(client: Client): { score: number; label: string; color
   if (score <= 20) return { score, label: 'Low', color: 'bg-emerald-100 text-emerald-800 border-emerald-200' }
   if (score <= 50) return { score, label: 'Medium', color: 'bg-amber-100 text-amber-800 border-amber-200' }
   return { score, label: 'High', color: 'bg-red-100 text-red-800 border-red-200' }
-}
-
-function getIncomeColor(income: number): string {
-  if (income >= 500) return 'text-emerald-700'
-  if (income >= 200) return 'text-blue-700'
-  if (income >= 100) return 'text-amber-700'
-  return 'text-red-700'
 }
 
 function Sparkline({ data, width = 120, height = 28 }: { data: number[]; width?: number; height?: number }) {
@@ -342,12 +333,12 @@ export function ClientList({
   }
 
   const handleExportCSV = () => {
-    const headers = ['Account #', 'Name', 'Phone', 'National ID', 'Business', 'Market', 'Daily Income', 'Status', 'Tier', 'Branch', 'Registered', 'Risk Score']
+    const headers = ['Account #', 'Name', 'Phone', 'National ID', 'Business', 'Market', 'Status', 'Tier', 'Branch', 'Registered', 'Risk Score']
     const rows = clients.map(c => {
       const risk = computeRiskScore(c)
       return [
         c.account_number, c.full_name, c.phone_number, c.national_id,
-        c.business_type, c.market_location, c.daily_business_income,
+        c.business_type, c.market_location,
         c.status, c.tier || 'bronze', c.branch || '', c.date_registered, `${risk.score} (${risk.label})`
       ]
     })
@@ -419,10 +410,6 @@ export function ClientList({
 
   const trendData = useMemo(() => registrationTrend.map(t => t.count), [registrationTrend])
   const trendTotal = useMemo(() => trendData.reduce((a, b) => a + b, 0), [trendData])
-
-  const topEarners = useMemo(() => {
-    return [...clients].sort((a, b) => b.daily_business_income - a.daily_business_income).slice(0, 5)
-  }, [clients])
 
   const hasActiveFilter = status !== 'all' || branch !== 'all' || tier !== 'all' || dateFrom || dateTo
 
@@ -839,14 +826,6 @@ export function ClientList({
                       )}
                       {visibleColumns.has('phone_id') && <TableHead>Phone / ID</TableHead>}
                       {visibleColumns.has('business') && <TableHead>Business & Location</TableHead>}
-                      {visibleColumns.has('income') && (
-                        <TableHead
-                          className="text-right cursor-pointer select-none hover:bg-gray-100"
-                          onClick={() => handleSort('daily_business_income')}
-                        >
-                          Daily Income <SortIcon column="daily_business_income" />
-                        </TableHead>
-                      )}
                       {visibleColumns.has('status') && (
                         <TableHead
                           className="cursor-pointer select-none hover:bg-gray-100"
@@ -995,16 +974,6 @@ export function ClientList({
                                   </div>
                                 </TableCell>
                               )}
-                              {visibleColumns.has('income') && (
-                                <TableCell className="text-right font-medium text-xs">
-                                  <span className={getIncomeColor(client.daily_business_income)}>
-                                    {formatCurrency(client.daily_business_income)}
-                                  </span>
-                                  <span className="block text-[10px] text-gray-400">
-                                    ~{formatCurrency(client.daily_business_income * 7)}/wk
-                                  </span>
-                                </TableCell>
-                              )}
                               {visibleColumns.has('status') && (
                                 <TableCell>
                                   <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${clientStatusBadgeClass(client.status)}`}>
@@ -1102,10 +1071,6 @@ export function ClientList({
                                           </div>
                                           <span className="font-medium text-gray-700">{client.profile_completeness}%</span>
                                         </div>
-                                      </div>
-                                      <div className="flex items-center justify-between">
-                                        <span className="text-gray-500">Monthly Income</span>
-                                        <span className="font-medium text-gray-700">{formatCurrency(client.monthly_income || client.daily_business_income * 26)}</span>
                                       </div>
                                       <div className="flex items-center justify-between">
                                         <span className="text-gray-500">Risk Score</span>
@@ -1280,9 +1245,6 @@ export function ClientList({
                               <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border ${clientStatusBadgeClass(client.status)}`}>
                                 {client.status}
                               </span>
-                              <span className={`text-xs font-semibold ${getIncomeColor(client.daily_business_income)}`}>
-                                {formatCurrency(client.daily_business_income)}/day
-                              </span>
                             </div>
 
                             {/* Profile completeness bar */}
@@ -1387,33 +1349,6 @@ export function ClientList({
         {/* Analytics Sidebar (desktop only) */}
         {showSidebar && (
           <aside className="hidden lg:block w-72 shrink-0 space-y-4 no-print">
-            {/* Top Earners (current page) */}
-            <Card className="border-gray-100">
-              <CardContent className="p-4 space-y-3">
-                <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wider flex items-center gap-1.5">
-                  <TrendingUp className="h-3.5 w-3.5 text-emerald-500" />
-                  Top Earners (this page)
-                </h3>
-                <div className="space-y-2">
-                  {topEarners.map((c, i) => (
-                    <Link key={c.id} href={`/clients/${c.id}`} className="flex items-center gap-2 group">
-                      <span className="text-[10px] font-bold text-gray-400 w-4">#{i + 1}</span>
-                      <div className={`w-6 h-6 rounded-full ${getAvatarColor(c.full_name)} flex items-center justify-center text-white text-[8px] font-bold`}>
-                        {getInitials(c.full_name)}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[11px] font-medium text-gray-800 truncate group-hover:text-blue-600">{c.full_name}</p>
-                        <p className="text-[10px] text-gray-400">{c.business_type}</p>
-                      </div>
-                      <span className={`text-[11px] font-bold ${getIncomeColor(c.daily_business_income)}`}>
-                        {formatCurrency(c.daily_business_income)}
-                      </span>
-                    </Link>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
             {/* Quick links */}
             <Card className="border-gray-100">
               <CardContent className="p-4 space-y-2">

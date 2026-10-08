@@ -71,55 +71,82 @@ async function handleClientsMigration(rows: any[], userId: string, adminClient: 
       if (!phone) throw new Error('Missing client phone number')
       const nationalId = String(row.nationalId || row.national_id || '').trim()
       if (!nationalId) throw new Error('Missing client Ghana Card / National ID')
+      const area = String(row.area || '').trim()
+      if (!area) throw new Error('Missing area')
+      const spouse = String(row.spouseOrFatherName || row.spouse_or_father_name || '').trim()
+      if (!spouse) throw new Error('Missing husband / wife / father name')
+      const presentAddress = String(row.presentAddress || row.residentialAddress || row.residential_address || '').trim()
+      if (!presentAddress) throw new Error('Missing present address')
+      const permanentAddress = String(row.permanentAddress || row.permanent_address || '').trim()
+      if (!permanentAddress) throw new Error('Missing permanent address')
+      const businessType = String(row.businessType || row.business_type || '').trim()
+      if (!businessType) throw new Error('Missing business type')
+      const marketLocation = String(row.marketLocation || row.market_location || '').trim()
+      if (!marketLocation) throw new Error('Missing market location')
+      const religion = String(row.religion || '').trim()
+      if (!religion) throw new Error('Missing religion')
+      const placeOfWorship = String(row.placeOfWorship || row.place_of_worship || '').trim()
+      if (!placeOfWorship) throw new Error('Missing place of worship')
+      const leaderName = String(row.pastorOrImamName || row.religiousLeaderName || row.religious_leader_name || '').trim()
+      if (!leaderName) throw new Error('Missing pastor / imam name')
+      const leaderPhone = String(row.pastorOrImamPhone || row.religiousLeaderPhone || row.religious_leader_phone || '').trim()
+      if (!leaderPhone) throw new Error('Missing pastor / imam phone')
+      const guarantorName = String(row.guarantorName || row.guarantor_name || '').trim()
+      if (!guarantorName) throw new Error('Missing guarantor name')
+      const guarantorPhone = String(row.guarantorPhone || row.guarantor_phone || '').trim()
+      if (!guarantorPhone) throw new Error('Missing guarantor phone')
+      const guarantorOccupation = String(row.guarantorOccupation || row.guarantor_occupation || row.guarantorBusiness || row.guarantor_business || '').trim()
+      if (!guarantorOccupation) throw new Error('Missing guarantor occupation')
+      const guarantorAddress = String(row.guarantorResidentialAddress || row.guarantor_residential_address || '').trim()
+      if (!guarantorAddress) throw new Error('Missing guarantor address')
 
-      const dailyIncome = parseFloat(row.dailyIncome || row.daily_business_income || '100')
-      const monthlyIncome = parseFloat(row.monthlyIncome || row.monthly_income || '0')
       const age = parseInt(row.age || '0', 10)
-
-      // Marital status enum validation
-      const rawMarital = String(row.maritalStatus || row.marital_status || 'married').toLowerCase().trim()
-      const validMarital = ['married', 'unmarried', 'abandoned', 'divorced', 'widow'].includes(rawMarital)
-        ? rawMarital
-        : 'married'
+      const rawMarital = String(row.maritalStatus || row.marital_status || '').toLowerCase().trim()
+      if (!['married', 'unmarried', 'abandoned', 'divorced', 'widow'].includes(rawMarital)) {
+        throw new Error('Marital status must be married, unmarried, abandoned, divorced, or widow')
+      }
+      const rawGender = String(row.guarantorGender || row.guarantor_gender || '').toLowerCase().trim()
+      if (rawGender !== 'male' && rawGender !== 'female') {
+        throw new Error('Guarantor gender must be male or female')
+      }
 
       const { data: newClient, error: clientErr } = await adminClient
         .from('clients')
         .insert({
-          branch: String(row.branch || 'Makola Branch').trim(),
-          area: String(row.area || 'Central Area').trim(),
+          branch: null,
+          area,
           full_name: name,
           phone_number: phone,
           national_id: nationalId,
-          spouse_or_father_name: String(row.spouseOrFatherName || row.spouse_or_father_name || '').trim() || null,
+          spouse_or_father_name: spouse,
           age: age > 0 ? age : null,
           date_of_birth: row.dateOfBirth || row.dob || null,
-          marital_status: validMarital,
-          residential_address: String(row.presentAddress || row.residentialAddress || row.residential_address || '').trim() || null,
-          permanent_address: String(row.permanentAddress || row.permanent_address || '').trim() || null,
+          marital_status: rawMarital,
+          residential_address: presentAddress,
+          permanent_address: permanentAddress,
           business_address: String(row.businessAddress || row.business_address || '').trim() || null,
-          business_type: String(row.businessType || row.business_type || 'General Trader').trim(),
-          market_location: String(row.marketLocation || row.market_location || 'Makola Market').trim(),
-          daily_business_income: isNaN(dailyIncome) ? 100 : dailyIncome,
-          monthly_income: isNaN(monthlyIncome) ? null : monthlyIncome,
-          religion: String(row.religion || 'Christianity').trim(),
-          place_of_worship: String(row.placeOfWorship || row.place_of_worship || '').trim() || null,
-          religious_leader_name: String(row.pastorOrImamName || row.religiousLeaderName || row.religious_leader_name || '').trim() || null,
-          religious_leader_phone: String(row.pastorOrImamPhone || row.religiousLeaderPhone || row.religious_leader_phone || '').trim() || null,
+          business_type: businessType,
+          market_location: marketLocation,
+          daily_business_income: null,
+          monthly_income: null,
+          religion,
+          place_of_worship: placeOfWorship,
+          religious_leader_name: leaderName,
+          religious_leader_phone: leaderPhone,
 
-          // Guarantor details
-          guarantor_name: String(row.guarantorName || row.guarantor_name || 'Family Guarantor').trim(),
-          guarantor_gender: String(row.guarantorGender || row.guarantor_gender || 'male').toLowerCase().trim(),
-          guarantor_account_number: String(row.guarantorAccountNumber || row.guarantor_account_number || '').trim() || null,
-          guarantor_phone: String(row.guarantorPhone || row.guarantor_phone || phone).trim(),
-          guarantor_national_id: String(row.guarantorNationalId || row.guarantor_national_id || 'GHA-G99-01').trim(),
-          guarantor_relationship: String(row.guarantorRelationship || row.guarantor_relationship || 'Relative').trim(),
-          guarantor_business: String(row.guarantorBusiness || row.guarantor_business || row.guarantorOccupation || row.guarantor_occupation || row.guarantorEmployer || row.guarantor_employer || 'Trader / Business').trim(),
-          guarantor_occupation: String(row.guarantorOccupation || row.guarantor_occupation || 'Trader').trim(),
-          guarantor_employer: String(row.guarantorEmployer || row.guarantor_employer || 'Self-employed').trim(),
-          guarantor_dob: row.guarantorDob || row.guarantor_dob || null,
-          guarantor_residential_address: String(row.guarantorResidentialAddress || row.guarantor_residential_address || '').trim() || null,
-          guarantor_religion: String(row.guarantorReligion || row.guarantor_religion || 'Christianity').trim() || null,
-          guarantor_place_of_worship: String(row.guarantorPlaceOfWorship || row.guarantor_place_of_worship || '').trim() || null,
+          guarantor_name: guarantorName,
+          guarantor_gender: rawGender,
+          guarantor_account_number: null,
+          guarantor_phone: guarantorPhone,
+          guarantor_national_id: null,
+          guarantor_relationship: null,
+          guarantor_business: guarantorOccupation,
+          guarantor_occupation: guarantorOccupation,
+          guarantor_employer: String(row.guarantorEmployer || row.guarantor_employer || '').trim() || null,
+          guarantor_dob: null,
+          guarantor_residential_address: guarantorAddress,
+          guarantor_religion: null,
+          guarantor_place_of_worship: null,
 
           status: 'active',
           created_by: userId,
@@ -577,8 +604,6 @@ async function handleLegacyCompositeMigration(rows: any[], userId: string, admin
         throw new Error(`Invalid Principal: ${row.principal}`)
       }
 
-      const dailyIncome = parseFloat(row.dailyIncome || '100')
-
       // Create Client
       const { data: client, error: clientErr } = await adminClient
         .from('clients')
@@ -588,11 +613,11 @@ async function handleLegacyCompositeMigration(rows: any[], userId: string, admin
           national_id: String(row.nationalId).trim(),
           business_type: String(row.businessType || 'General Trader').trim(),
           market_location: String(row.marketLocation || 'Makola Market').trim(),
-          daily_business_income: isNaN(dailyIncome) ? 100 : dailyIncome,
+          daily_business_income: null,
           guarantor_name: String(row.guarantorName || 'Family Guarantor').trim(),
           guarantor_phone: String(row.guarantorPhone || row.phoneNumber).trim(),
-          guarantor_national_id: String(row.guarantorId || 'GHA-UNKNOWN').trim(),
-          guarantor_relationship: String(row.guarantorRelationship || 'Relative').trim(),
+          guarantor_national_id: null,
+          guarantor_relationship: null,
           guarantor_business: String(row.guarantorBusiness || 'Trader').trim(),
           created_by: userId,
           status: 'active',
@@ -789,7 +814,6 @@ async function handleGroup13WeekLedgerMigration(rows: any[], userId: string, adm
 
       if (!client) {
         const nationalId = `GHA-${String(700000000 + (rowNum * 313)).slice(0, 9)}-${(rowNum % 9) + 1}`
-        const dailyIncome = Math.round(principal / 10)
 
         const { data: newClient, error: clientErr } = await adminClient
           .from('clients')
@@ -801,15 +825,15 @@ async function handleGroup13WeekLedgerMigration(rows: any[], userId: string, adm
             area: 'Accra Central',
             business_type: 'Market Trader',
             market_location: 'Makola Market',
-            daily_business_income: dailyIncome,
-            monthly_income: dailyIncome * 26,
+            daily_business_income: null,
+            monthly_income: null,
             marital_status: 'married',
             religion: 'Christianity',
             guarantor_name: 'Family Guarantor',
             guarantor_gender: 'male',
             guarantor_phone: phone,
-            guarantor_national_id: `GHA-${String(600000000 + (rowNum * 313)).slice(0, 9)}-${(rowNum % 9) + 1}`,
-            guarantor_relationship: 'Relative',
+            guarantor_national_id: null,
+            guarantor_relationship: null,
             guarantor_business: 'Trader / Business',
             guarantor_occupation: 'Trader',
             guarantor_employer: 'Self-employed',

@@ -152,11 +152,6 @@ export function PrintableLoanContract({ loan, client, settings }: LoanContractPr
   const month = signingDate.toLocaleString('default', { month: 'long' })
   const year = signingDate.getFullYear()
 
-  const monthlyIncome =
-    client.monthly_income != null && client.monthly_income !== ''
-      ? Number(client.monthly_income)
-      : round2(num(client.daily_business_income, 0) * 26)
-
   return (
     <div className="space-y-6">
       {/* Screen action header (hidden during print) */}
@@ -302,15 +297,9 @@ export function PrintableLoanContract({ loan, client, settings }: LoanContractPr
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-2 pt-1">
-                <div>
-                  <span className="font-sans font-bold text-xs">Age / DOB:</span>{' '}
-                  <span className="border-b border-dotted border-black inline-block min-w-[120px]">{client.age != null ? `${client.age} yrs` : (client.date_of_birth ? formatDate(client.date_of_birth) : EMPTY)}</span>
-                </div>
-                <div>
-                  <span className="font-sans font-bold text-xs">Average Monthly Income:</span>{' '}
-                  <span className="border-b border-dotted border-black inline-block min-w-[140px] font-mono font-bold">GH¢ {monthlyIncome.toFixed(2)}</span>
-                </div>
+              <div className="pt-1">
+                <span className="font-sans font-bold text-xs">Age / DOB:</span>{' '}
+                <span className="border-b border-dotted border-black inline-block min-w-[120px]">{client.age != null ? `${client.age} yrs` : (client.date_of_birth ? formatDate(client.date_of_birth) : EMPTY)}</span>
               </div>
 
               <div className="pt-1">
@@ -489,26 +478,9 @@ export function PrintableLoanContract({ loan, client, settings }: LoanContractPr
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-2 pt-1">
-                <div>
-                  <span className="font-sans font-bold text-xs">Relationship to Applicant:</span>{' '}
-                  <span className="border-b border-dotted border-black inline-block min-w-[140px] capitalize">{txt(client.guarantor_relationship)}</span>
-                </div>
-                <div>
-                  <span className="font-sans font-bold text-xs">Tel #:</span>{' '}
-                  <span className="border-b border-dotted border-black inline-block min-w-[150px] font-mono font-bold">{txt(client.guarantor_phone)}</span>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2 pt-1">
-                <div>
-                  <span className="font-sans font-bold text-xs">National ID #:</span>{' '}
-                  <span className="border-b border-dotted border-black inline-block min-w-[150px] font-mono">{txt(client.guarantor_national_id)}</span>
-                </div>
-                <div>
-                  <span className="font-sans font-bold text-xs">Account # of Guarantor:</span>{' '}
-                  <span className="border-b border-dotted border-black inline-block min-w-[150px] font-mono">{txt(client.guarantor_account_number)}</span>
-                </div>
+              <div className="pt-1">
+                <span className="font-sans font-bold text-xs">Tel #:</span>{' '}
+                <span className="border-b border-dotted border-black inline-block min-w-[150px] font-mono font-bold">{txt(client.guarantor_phone)}</span>
               </div>
 
               <div className="grid grid-cols-3 gap-2 pt-1">

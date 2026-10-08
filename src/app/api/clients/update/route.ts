@@ -30,7 +30,7 @@ export async function PATCH(request: NextRequest) {
     'full_name', 'phone_number', 'national_id', 'spouse_or_father_name',
     'age', 'date_of_birth', 'marital_status', 'residential_address',
     'permanent_address', 'business_address', 'business_type', 'market_location',
-    'daily_business_income', 'monthly_income', 'religion', 'place_of_worship',
+    'religion', 'place_of_worship',
     'religious_leader_name', 'religious_leader_phone', 'branch', 'area',
     'emergency_contact_name', 'emergency_contact_phone', 'emergency_contact_relationship',
     'notes', 'status',

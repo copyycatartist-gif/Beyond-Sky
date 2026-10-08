@@ -22,8 +22,6 @@ interface ClientData {
   business_address: string | null
   business_type: string
   market_location: string
-  daily_business_income: number
-  monthly_income: number | null
   religion: string | null
   place_of_worship: string | null
   religious_leader_name: string | null
@@ -53,8 +51,6 @@ export function ClientEditDialog({ client }: { client: ClientData }) {
     business_address: client.business_address || '',
     business_type: client.business_type,
     market_location: client.market_location,
-    daily_business_income: client.daily_business_income.toString(),
-    monthly_income: (client.monthly_income || 0).toString(),
     religion: client.religion || '',
     place_of_worship: client.place_of_worship || '',
     religious_leader_name: client.religious_leader_name || '',
@@ -70,9 +66,6 @@ export function ClientEditDialog({ client }: { client: ClientData }) {
     const { name, value } = e.target
     setForm(prev => {
       const updated = { ...prev, [name]: value }
-      if (name === 'daily_business_income' && value) {
-        updated.monthly_income = (parseFloat(value) * 26).toFixed(2)
-      }
       if (name === 'date_of_birth' && value) {
         const dob = new Date(value)
         const age = Math.floor((Date.now() - dob.getTime()) / (365.25 * 24 * 60 * 60 * 1000))
@@ -92,8 +85,6 @@ export function ClientEditDialog({ client }: { client: ClientData }) {
           id: client.id,
           ...form,
           age: form.age ? parseInt(form.age) : null,
-          daily_business_income: parseFloat(form.daily_business_income) || 0,
-          monthly_income: parseFloat(form.monthly_income) || 0,
         }),
       })
       if (res.ok) {
@@ -178,14 +169,6 @@ export function ClientEditDialog({ client }: { client: ClientData }) {
               <div className="space-y-1">
                 <Label htmlFor="edit-market">Market Location *</Label>
                 <Input id="edit-market" name="market_location" value={form.market_location} onChange={handleChange} />
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="edit-daily">Daily Income (GHS) *</Label>
-                <Input id="edit-daily" name="daily_business_income" type="number" step="0.01" value={form.daily_business_income} onChange={handleChange} />
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="edit-monthly">Monthly Income (GHS)</Label>
-                <Input id="edit-monthly" name="monthly_income" type="number" step="0.01" value={form.monthly_income} onChange={handleChange} />
               </div>
               <div className="space-y-1 sm:col-span-2">
                 <Label htmlFor="edit-residential">Residential Address</Label>

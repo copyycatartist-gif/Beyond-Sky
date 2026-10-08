@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { useToast } from '@/components/ui/use-toast'
 import { formatCurrency } from '@/lib/utils'
 import {
@@ -20,7 +19,6 @@ import {
   Calculator,
   CheckCircle2,
   AlertTriangle,
-  AlertCircle,
   RefreshCw,
   FileCheck,
   Shield,
@@ -122,8 +120,6 @@ export function LoanApplicationForm({
 
   // Guarantor note (free text, local to the application) + manager override
   const [guarantorNote, setGuarantorNote] = useState('')
-  const [overrideReason, setOverrideReason] = useState('')
-
   const selectedClient = clients.find((c) => c.id === selectedClientId)
   const activeExistingLoan = selectedClient?.activeLoan ?? null
   const isRefinancing = Boolean(activeExistingLoan)
@@ -200,7 +196,6 @@ export function LoanApplicationForm({
   }, [])
 
   // ---- Loan math (single source of truth) ----------------------------------
-  const dailyIncome = selectedClient?.daily_business_income || 0
 
   const terms = useMemo(
     () =>
@@ -218,11 +213,11 @@ export function LoanApplicationForm({
         principal: principal || 0,
         interestMultiplier: activeMultiplier,
         termWeeks: activeTerm,
-        dailyIncome: isMonthly ? (dailyIncome * 26) / 7 : dailyIncome,
+        dailyIncome: 0,
         eligibilityRatio: settings.eligibilityRatio,
         refinanceBalance: isRefinancing ? existingBalance : 0,
       }),
-    [principal, activeMultiplier, activeTerm, dailyIncome, settings.eligibilityRatio, isRefinancing, existingBalance, isMonthly]
+    [principal, activeMultiplier, activeTerm, settings.eligibilityRatio, isRefinancing, existingBalance, isMonthly]
   )
 
   const schedule = useMemo(
@@ -299,14 +294,6 @@ export function LoanApplicationForm({
       setStep(2)
       return
     }
-    if (calc.eligibility.flag === 'ineligible' && !overrideReason.trim()) {
-      setErrors((prev) => ({
-        ...prev,
-        overrideReason: 'A manager override reason is required for an ineligible affordability flag.',
-      }))
-      return
-    }
-
     setLoading(true)
     // One idempotency key per submit attempt
     const idempotencyKey =
@@ -334,7 +321,7 @@ export function LoanApplicationForm({
           agreementTown,
           agreementDistrict,
           agreementRegion,
-          overrideReason: calc.eligibility.flag === 'ineligible' ? overrideReason.trim() : undefined,
+          overrideReason: undefined,
         }),
       })
 
@@ -372,14 +359,6 @@ export function LoanApplicationForm({
         variant: 'success',
       })
 
-      if (calc.eligibility.flag === 'ineligible') {
-        toast({
-          title: 'Submitted with manager override',
-          description: 'The affordability flag was overridden; the reason is recorded for review.',
-          variant: 'info',
-        })
-      }
-
       router.push(`/loans/${body?.loan?.id}`)
       router.refresh()
     } catch (err: any) {
@@ -394,13 +373,6 @@ export function LoanApplicationForm({
   }
 
   // ---- Render helpers ---------------------------------------------------------
-  const eligibilityStyles =
-    calc.eligibility.flag === 'eligible'
-      ? 'border-emerald-300 bg-emerald-50/50'
-      : calc.eligibility.flag === 'caution'
-      ? 'border-amber-300 bg-amber-50/50'
-      : 'border-rose-300 bg-rose-50/50'
-
   const summaryRow = (label: string, value: React.ReactNode, bold = false) => (
     <div className={`flex justify-between py-1 ${bold ? 'font-bold text-gray-900' : 'text-gray-600'}`}>
       <span>{label}</span>
@@ -543,12 +515,6 @@ export function LoanApplicationForm({
                   </div>
                 </div>
                 <div className="flex justify-between pt-1 border-t border-slate-200">
-                  <span className="text-gray-500">Declared Daily Income:</span>
-                  <span className="font-bold text-gray-900">
-                    {formatCurrency(selectedClient.daily_business_income)} / day
-                  </span>
-                </div>
-                <div className="flex justify-between">
                   <span className="text-gray-500">Loan History:</span>
                   <span className="font-bold text-gray-900">
                     {selectedClient.totalLoans ?? 0} prior loan{(selectedClient.totalLoans ?? 0) === 1 ? '' : 's'} • Cycle #{cycleNumber}
@@ -859,14 +825,6 @@ export function LoanApplicationForm({
                       <p className="font-semibold text-gray-800 font-mono">{selectedClient.guarantor_phone || '—'}</p>
                     </div>
                     <div>
-                      <span className="text-gray-500">Relationship:</span>
-                      <p className="font-semibold text-gray-800">{selectedClient.guarantor_relationship || '—'}</p>
-                    </div>
-                    <div>
-                      <span className="text-gray-500">National ID:</span>
-                      <p className="font-semibold text-gray-800 font-mono">{selectedClient.guarantor_national_id || '—'}</p>
-                    </div>
-                    <div>
                       <span className="text-gray-500">Occupation:</span>
                       <p className="font-semibold text-gray-800">{selectedClient.guarantor_occupation || '—'}</p>
                     </div>
@@ -941,90 +899,11 @@ export function LoanApplicationForm({
               </CardContent>
             </Card>
 
-            <div className="space-y-6">
-              {/* Eligibility / affordability card */}
-              <Card className={`border ${eligibilityStyles}`}>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-xs font-bold uppercase tracking-wider flex items-center gap-1.5">
-                    {calc.eligibility.flag === 'eligible' && <CheckCircle2 className="h-4 w-4 text-emerald-600" />}
-                    {calc.eligibility.flag === 'caution' && <AlertTriangle className="h-4 w-4 text-amber-600" />}
-                    {calc.eligibility.flag === 'ineligible' && <AlertCircle className="h-4 w-4 text-rose-600" />}
-                    Affordability & Risk Assessment
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2 text-xs">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Weekly Installment:</span>
-                    <span className="font-bold">{formatCurrency(calc.weeklyInstallment)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Weekly Turnover (7x Daily):</span>
-                    <span className="font-bold">{formatCurrency(calc.eligibility.weeklyIncome)}</span>
-                  </div>
-                  <div className="flex justify-between font-medium">
-                    <span className="text-gray-600">Income Ratio:</span>
-                    <span className={calc.eligibility.ratio <= settings.eligibilityRatio ? 'text-emerald-700 font-bold' : 'text-rose-700 font-bold'}>
-                      {(calc.eligibility.ratio * 100).toFixed(1)}% (Threshold: {Math.round(settings.eligibilityRatio * 100)}%)
-                    </span>
-                  </div>
-                  <div className="pt-1">
-                    <Badge
-                      className={
-                        calc.eligibility.flag === 'eligible'
-                          ? 'bg-emerald-600 text-white'
-                          : calc.eligibility.flag === 'caution'
-                          ? 'bg-amber-500 text-white'
-                          : 'bg-rose-600 text-white'
-                      }
-                    >
-                      {calc.eligibility.flag.toUpperCase()}
-                    </Badge>
-                  </div>
-                  {calc.eligibility.flag === 'caution' && (
-                    <p className="text-[11px] text-amber-800">
-                      Installment exceeds the affordability threshold — manager scrutiny advised at approval.
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Manager override for ineligible flag */}
-              {calc.eligibility.flag === 'ineligible' && (
-                <Card className="border-rose-300 bg-rose-50/50">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-xs font-bold uppercase tracking-wider text-rose-900 flex items-center gap-1.5">
-                      <AlertCircle className="h-4 w-4 text-rose-600" />
-                      Manager Override Required
-                    </CardTitle>
-                    <CardDescription className="text-[11px] text-rose-800">
-                      Fails the affordability check — provide a justification to submit anyway.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-1.5">
-                    <textarea
-                      value={overrideReason}
-                      onChange={(e) => {
-                        setOverrideReason(e.target.value)
-                        setErrors((p) => ({ ...p, overrideReason: '' }))
-                      }}
-                      rows={3}
-                      placeholder="Reason for overriding the ineligibility flag…"
-                      className="w-full rounded-md border border-rose-300 bg-white px-3 py-2 text-xs text-gray-900 focus:outline-none focus:ring-2 focus:ring-rose-400"
-                    />
-                    {errors.overrideReason && <p className="text-xs text-red-600">{errors.overrideReason}</p>}
-                  </CardContent>
-                </Card>
-              )}
-            </div>
           </div>
 
           <Button
             type="submit"
-            disabled={
-              loading ||
-              !selectedClientId ||
-              (calc.eligibility.flag === 'ineligible' && !overrideReason.trim())
-            }
+            disabled={loading || !selectedClientId}
             className="w-full bg-blue-600 hover:bg-blue-700 h-11 text-sm font-semibold shadow-md"
           >
             {loading ? (

@@ -44,8 +44,6 @@ const clientSchema = z.object({
   business_address: z.string().optional().or(z.literal('')),
   business_type: z.string().min(2, 'Required'),
   market_location: z.string().min(2, 'Required'),
-  daily_business_income: z.coerce.number().min(1, 'Must be > 0'),
-  monthly_income: z.coerce.number().optional().or(z.literal('')),
   religion: z.string().min(2, 'Required'),
   place_of_worship: z.string().min(2, 'Required'),
   religious_leader_name: z.string().min(2, 'Required'),
@@ -53,8 +51,6 @@ const clientSchema = z.object({
   guarantor_name: z.string().min(3, 'Required'),
   guarantor_gender: z.enum(['male', 'female']),
   guarantor_phone: ghanaPhoneField('Valid Ghana phone required'),
-  guarantor_national_id: z.string().regex(ghanaIdRegex, 'Format: GHA-#########-#'),
-  guarantor_relationship: z.string().min(2, 'Required'),
   guarantor_occupation: z.string().min(2, 'Required'),
   guarantor_employer: z.string().optional().or(z.literal('')),
   guarantor_residential_address: z.string().min(5, 'Required'),
@@ -147,8 +143,6 @@ export function ClientForm() {
       business_address: '',
       business_type: '',
       market_location: '',
-      daily_business_income: '' as any,
-      monthly_income: '' as any,
       religion: 'Christianity',
       place_of_worship: '',
       religious_leader_name: '',
@@ -156,8 +150,6 @@ export function ClientForm() {
       guarantor_name: '',
       guarantor_gender: 'male' as const,
       guarantor_phone: '',
-      guarantor_national_id: '',
-      guarantor_relationship: '',
       guarantor_occupation: '',
       guarantor_employer: '',
       guarantor_residential_address: '',
@@ -176,10 +168,6 @@ export function ClientForm() {
     const { name, value } = e.target
     setFormData((prev) => {
       const updated = { ...prev, [name]: value } as any
-
-      if (name === 'daily_business_income' && value && !isNaN(parseFloat(value))) {
-        updated.monthly_income = (parseFloat(value) * 26).toFixed(2)
-      }
 
       if (name === 'date_of_birth' && value) {
         const dob = new Date(value)
@@ -243,14 +231,12 @@ export function ClientForm() {
   const STEP_FIELDS: Record<number, string[]> = {
     0: ['area'],
     1: ['full_name', 'phone_number', 'national_id', 'spouse_or_father_name', 'marital_status'],
-    2: ['present_address', 'permanent_address', 'business_type', 'market_location', 'daily_business_income'],
+    2: ['present_address', 'permanent_address', 'business_type', 'market_location'],
     3: ['religion', 'place_of_worship', 'religious_leader_name', 'religious_leader_phone'],
     4: [
       'guarantor_name',
       'guarantor_gender',
       'guarantor_phone',
-      'guarantor_national_id',
-      'guarantor_relationship',
       'guarantor_occupation',
       'guarantor_residential_address',
     ],
@@ -335,9 +321,6 @@ export function ClientForm() {
         return
       }
 
-      const dailyIncome = parseFloat(formData.daily_business_income as any) || 0
-      const monthlyIncome = parseFloat(formData.monthly_income as any) || (dailyIncome * 26)
-
       const { data, error } = await supabase
         .from('clients')
         .insert({
@@ -355,8 +338,8 @@ export function ClientForm() {
           business_address: formData.business_address?.trim() || null,
           business_type: formData.business_type.trim(),
           market_location: formData.market_location.trim(),
-          daily_business_income: dailyIncome,
-          monthly_income: monthlyIncome,
+          daily_business_income: null,
+          monthly_income: null,
           religion: formData.religion?.trim() || null,
           place_of_worship: formData.place_of_worship?.trim() || null,
           religious_leader_name: formData.religious_leader_name?.trim() || null,
@@ -365,8 +348,8 @@ export function ClientForm() {
           guarantor_gender: formData.guarantor_gender,
           guarantor_account_number: null,
           guarantor_phone: (formData.guarantor_phone as string).replace(/\s/g, ''),
-          guarantor_national_id: formData.guarantor_national_id.trim(),
-          guarantor_relationship: formData.guarantor_relationship?.trim() || '',
+          guarantor_national_id: null,
+          guarantor_relationship: null,
           guarantor_business: formData.guarantor_occupation?.trim() || 'Self-Employed',
           guarantor_occupation: formData.guarantor_occupation?.trim() || null,
           guarantor_employer: formData.guarantor_employer?.trim() || null,
@@ -650,16 +633,6 @@ export function ClientForm() {
               <Label htmlFor="business_address">Detailed Business Address</Label>
               <Input id="business_address" name="business_address" placeholder="Corner of Pagan Road and Derby Avenue" value={formData.business_address || ''} onChange={handleChange} />
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="daily_business_income">Declared Daily Income (GHS) *</Label>
-              <Input id="daily_business_income" name="daily_business_income" type="number" min="0" step="0.01" placeholder="150.00" value={formData.daily_business_income as any} onChange={handleChange} required />
-              {errors.daily_business_income && <p className="text-xs text-red-500">{errors.daily_business_income}</p>}
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="monthly_income">Monthly Income (auto-calculated)</Label>
-              <Input id="monthly_income" name="monthly_income" type="number" min="0" step="0.01" placeholder="Auto" value={formData.monthly_income as any || ''} onChange={handleChange} />
-              <p className="text-[11px] text-gray-400">= Daily × 26 trading days</p>
-            </div>
           </CardContent>
         </Card>
       )}
@@ -729,16 +702,6 @@ export function ClientForm() {
               {errors.guarantor_phone && <p className="text-xs text-red-500">{errors.guarantor_phone}</p>}
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="guarantor_national_id">Guarantor National ID *</Label>
-              <Input id="guarantor_national_id" name="guarantor_national_id" placeholder="GHA-987654321-0" value={formData.guarantor_national_id} onChange={handleIdChange} required />
-              {errors.guarantor_national_id && <p className="text-xs text-red-500">{errors.guarantor_national_id}</p>}
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="guarantor_relationship">Relationship to Applicant *</Label>
-              <Input id="guarantor_relationship" name="guarantor_relationship" placeholder="Husband, Brother, Sister" value={formData.guarantor_relationship || ''} onChange={handleChange} required />
-              {errors.guarantor_relationship && <p className="text-xs text-red-500">{errors.guarantor_relationship}</p>}
-            </div>
-            <div className="space-y-1.5">
               <Label htmlFor="guarantor_occupation">Occupation *</Label>
               <Input id="guarantor_occupation" name="guarantor_occupation" placeholder="Civil Servant, Trader" value={formData.guarantor_occupation || ''} onChange={handleChange} required />
               {errors.guarantor_occupation && <p className="text-xs text-red-500">{errors.guarantor_occupation}</p>}
@@ -780,8 +743,6 @@ export function ClientForm() {
                 <p className="font-semibold text-gray-700 text-[11px] uppercase tracking-wider">Business</p>
                 <p><span className="text-gray-400">Type:</span> <span className="font-medium">{formData.business_type}</span></p>
                 <p><span className="text-gray-400">Market:</span> {formData.market_location}</p>
-                <p><span className="text-gray-400">Daily Income:</span> <span className="font-bold">GHS {formData.daily_business_income}</span></p>
-                <p><span className="text-gray-400">Monthly:</span> GHS {formData.monthly_income || '—'}</p>
                 <button type="button" onClick={() => setCurrentStep(2)} className="text-blue-600 hover:underline text-[11px]">Edit →</button>
               </div>
               <div className="p-3 bg-gray-50 rounded-lg border border-gray-100 space-y-1.5">
@@ -795,7 +756,6 @@ export function ClientForm() {
                 <p className="font-semibold text-indigo-800 text-[11px] uppercase tracking-wider">Guarantor</p>
                 <p><span className="text-gray-400">Name:</span> <span className="font-medium">{formData.guarantor_name}</span></p>
                 <p><span className="text-gray-400">Phone:</span> <span className="font-mono">{formData.guarantor_phone}</span></p>
-                <p><span className="text-gray-400">Relationship:</span> {formData.guarantor_relationship}</p>
                 <button type="button" onClick={() => setCurrentStep(4)} className="text-blue-600 hover:underline text-[11px]">Edit →</button>
               </div>
             </div>

@@ -100,7 +100,7 @@ export interface Database {
           national_id: string
           business_type: string
           market_location: string
-          daily_business_income: number
+          daily_business_income: number | null
           branch: string | null
           area: string | null
           spouse_or_father_name: string | null
@@ -119,8 +119,8 @@ export interface Database {
           guarantor_gender: string | null
           guarantor_account_number: string | null
           guarantor_phone: string
-          guarantor_national_id: string
-          guarantor_relationship: string
+          guarantor_national_id: string | null
+          guarantor_relationship: string | null
           guarantor_business: string
           guarantor_occupation: string | null
           guarantor_employer: string | null
@@ -147,7 +147,7 @@ export interface Database {
           national_id: string
           business_type: string
           market_location: string
-          daily_business_income: number
+          daily_business_income: number | null
           branch?: string | null
           area?: string | null
           spouse_or_father_name?: string | null
@@ -166,8 +166,8 @@ export interface Database {
           guarantor_gender?: string | null
           guarantor_account_number?: string | null
           guarantor_phone: string
-          guarantor_national_id: string
-          guarantor_relationship: string
+          guarantor_national_id: string | null
+          guarantor_relationship: string | null
           guarantor_business: string
           guarantor_occupation?: string | null
           guarantor_employer?: string | null
@@ -201,7 +201,7 @@ export interface Database {
           national_id?: string
           business_type?: string
           market_location?: string
-          daily_business_income?: number
+          daily_business_income?: number | null
           branch?: string | null
           area?: string | null
           spouse_or_father_name?: string | null
@@ -220,8 +220,8 @@ export interface Database {
           guarantor_gender?: string | null
           guarantor_account_number?: string | null
           guarantor_phone?: string
-          guarantor_national_id?: string
-          guarantor_relationship?: string
+          guarantor_national_id?: string | null
+          guarantor_relationship?: string | null
           guarantor_business?: string
           guarantor_occupation?: string | null
           guarantor_employer?: string | null

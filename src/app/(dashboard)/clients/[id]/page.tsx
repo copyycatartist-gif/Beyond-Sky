@@ -161,9 +161,6 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
   const tierConfig = TIER_CONFIG[(client as any).tier || 'bronze']
   const TierIcon = tierConfig.icon
 
-  const weeklyIncome = client.daily_business_income * 7
-  const maxEligibleLoan = Math.floor((weeklyIncome * 0.30 * 13) / 1.365)
-
   return (
     <div className="space-y-6">
       {/* Breadcrumb */}
@@ -276,19 +273,7 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
       </div>
 
       {/* Quick Stats Bar */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-        <Card className="border-gray-100">
-          <CardContent className="p-3 text-center">
-            <p className="text-[11px] text-gray-500 uppercase tracking-wider">Daily Income</p>
-            <p className="text-base font-bold text-gray-900 mt-0.5">{formatCurrency(client.daily_business_income)}</p>
-          </CardContent>
-        </Card>
-        <Card className="border-gray-100">
-          <CardContent className="p-3 text-center">
-            <p className="text-[11px] text-gray-500 uppercase tracking-wider">Max Eligible</p>
-            <p className="text-base font-bold text-emerald-700 mt-0.5">{formatCurrency(maxEligibleLoan)}</p>
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         <Card className="border-gray-100">
           <CardContent className="p-3 text-center">
             <p className="text-[11px] text-gray-500 uppercase tracking-wider">Loan Cycles</p>
@@ -417,16 +402,6 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
                     <ExternalLink className="h-2 w-2" />
                   </a>
                 </div>
-                <div className="grid grid-cols-2 gap-2 pt-1 border-t border-gray-100">
-                  <div>
-                    <p className="text-gray-400">Daily Turnover</p>
-                    <p className="font-bold text-gray-900">{formatCurrency(client.daily_business_income)} / day</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-400">Avg. Monthly Income</p>
-                    <p className="font-bold text-emerald-700">{formatCurrency(client.monthly_income || (client.daily_business_income * 26))}</p>
-                  </div>
-                </div>
               </div>
 
               {/* Emergency Contact */}
@@ -499,8 +474,8 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <p className="text-gray-400">Gender / Relationship</p>
-                  <p className="font-medium text-gray-800 mt-0.5 capitalize">{client.guarantor_gender || 'Male'} • {client.guarantor_relationship}</p>
+                  <p className="text-gray-400">Gender</p>
+                  <p className="font-medium text-gray-800 mt-0.5 capitalize">{client.guarantor_gender || 'Male'}</p>
                 </div>
                 <div>
                   <p className="text-gray-400">Guarantor A/C #</p>
@@ -515,10 +490,6 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
                       {client.guarantor_phone}
                     </a>
                   </p>
-                </div>
-                <div>
-                  <p className="text-gray-400">National ID</p>
-                  <p className="font-mono text-gray-800 mt-0.5">{client.guarantor_national_id}</p>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-2">
@@ -621,37 +592,6 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
                   <p className="text-gray-500">Net Disbursed</p>
                   <p className="text-base font-bold text-emerald-700 mt-0.5">{formatCurrency(activeLoan.net_disbursement_amount || activeLoan.amount_disbursed_to_client)}</p>
                 </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Eligibility Calculator */}
-          {!activeLoan && !pendingLoan && (
-            <Card className="border-blue-100">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm text-blue-900 flex items-center gap-2">
-                  <TrendingUp className="h-4 w-4 text-blue-600" />
-                  Loan Eligibility Estimate
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="text-xs space-y-2">
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="p-2 bg-blue-50 rounded-lg text-center">
-                    <p className="text-gray-500">Weekly Income</p>
-                    <p className="font-bold text-gray-900">{formatCurrency(weeklyIncome)}</p>
-                  </div>
-                  <div className="p-2 bg-blue-50 rounded-lg text-center">
-                    <p className="text-gray-500">30% Capacity</p>
-                    <p className="font-bold text-gray-900">{formatCurrency(weeklyIncome * 0.30)}/wk</p>
-                  </div>
-                  <div className="p-2 bg-emerald-50 rounded-lg text-center">
-                    <p className="text-gray-500">Max Loan (13wk)</p>
-                    <p className="font-bold text-emerald-700">{formatCurrency(maxEligibleLoan)}</p>
-                  </div>
-                </div>
-                <p className="text-[11px] text-gray-400">
-                  Based on declared daily income of {formatCurrency(client.daily_business_income)} and 30% debt-to-income threshold.
-                </p>
               </CardContent>
             </Card>
           )}
