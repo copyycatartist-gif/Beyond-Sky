@@ -410,10 +410,10 @@ export default async function LoanDetailPage({ params }: { params: { id: string 
         <div>
           <CardTitle className="text-base text-gray-900 flex items-center gap-2">
             <CreditCard className="h-4 w-4 text-blue-600" />
-            Append-Only Ledger Transactions
+            Ledger
           </CardTitle>
           <CardDescription className="text-xs">
-            Immutable financial record of disbursements, fees, and client repayments
+            Cash paid out, the processing fee, and repayments
           </CardDescription>
         </div>
         <PrintButton label="Print Ledger" />
@@ -442,8 +442,8 @@ export default async function LoanDetailPage({ params }: { params: { id: string 
                   <TableRow key={t.id} className="text-xs hover:bg-slate-50/80">
                     <TableCell>{formatDate(t.transaction_date)}</TableCell>
                     <TableCell className="font-semibold uppercase tracking-wider text-[10px]">
-                      <span className={t.type === 'disbursement' ? 'text-blue-700' : 'text-emerald-700'}>
-                        {t.type}
+                      <span className={t.type === 'disbursement' ? 'text-blue-700' : t.type === 'fee' ? 'text-rose-700' : 'text-emerald-700'}>
+                        {t.type === 'disbursement' ? 'Cash out' : t.type === 'fee' ? 'Processing fee' : t.type === 'repayment' ? 'Repayment' : t.type}
                       </span>
                     </TableCell>
                     <TableCell className="text-right font-bold font-mono">

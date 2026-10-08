@@ -1175,9 +1175,9 @@ export function GroupCollectionMatrix({
               )}
             </h2>
             <p className="text-xs text-gray-500">
-              Interactive 13-week group repayment ledger — use <kbd className="px-1 bg-gray-100 border rounded text-[10px]">←</kbd>{' '}
-              <kbd className="px-1 bg-gray-100 border rounded text-[10px]">→</kbd> to browse weeks and{' '}
-              <kbd className="px-1 bg-gray-100 border rounded text-[10px]">Enter</kbd> to collect
+              {periodKind === 'month'
+                ? `Sunday collection sheet, one column each month. Use the arrow keys to move and Enter to collect.`
+                : `Sunday collection sheet for ${periodCount} weeks. Use the arrow keys to move and Enter to collect.`}
             </p>
           </div>
         </div>
@@ -1407,7 +1407,7 @@ export function GroupCollectionMatrix({
                 BEYOND SKY MICRO-CREDIT ENTERPRISE
               </h1>
               <p className="text-xs font-semibold text-gray-700 uppercase">
-                Group {periodKind === 'month' ? `${TOTAL_WEEKS}-Month` : '13-Week'} Field Collection Schedule & Repayment Ledger
+                Group Sunday collection sheet ({periodKind === 'month' ? `${TOTAL_WEEKS} months` : `${TOTAL_WEEKS} weeks`})
               </p>
               <p className="text-[10px] text-gray-500 print:text-black">
                 Branch: {branch} | Area: {area} | Penalty rate: {penaltyRate}% per {periodKind} overdue

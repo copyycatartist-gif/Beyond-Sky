@@ -9,6 +9,15 @@ import Link from 'next/link'
 
 export const dynamic = 'force-dynamic'
 
+function collectionSunday(weekStart: string) {
+  const [year, month, day] = String(weekStart).slice(0, 10).split('-').map(Number)
+  const date = new Date(year, (month || 1) - 1, (day || 1) + 6)
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
 export default async function ReportsPage() {
   await requirePageRoles(['supervisor', 'manager', 'accountant_admin'])
   const supabase = await createClient()
@@ -40,9 +49,9 @@ export default async function ReportsPage() {
       {/* Header & Print Action */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Financial Ledger & Reports</h1>
+          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Financial ledger</h1>
           <p className="text-gray-500 text-sm mt-0.5">
-            Audit-grade derived financial summaries, portfolio risk, and weekly recovery analytics
+            Cash paid to clients, the processing fee, Sunday collections, and the balance still outstanding
           </p>
         </div>
 
@@ -59,22 +68,22 @@ export default async function ReportsPage() {
       {/* High-Level Ledger Totals */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="p-4 bg-slate-50 border-slate-200">
-          <p className="text-xs text-gray-500 font-medium">Total Capital Disbursed</p>
+          <p className="text-xs text-gray-500 font-medium">Cash paid out</p>
           <p className="text-xl font-bold text-gray-900 mt-1">{formatCurrency(totalDisbursed)}</p>
         </Card>
 
         <Card className="p-4 bg-emerald-50/50 border-emerald-200">
-          <p className="text-xs text-emerald-800 font-medium">Total Fees Recognized</p>
+          <p className="text-xs text-emerald-800 font-medium">Processing fees</p>
           <p className="text-xl font-bold text-emerald-800 mt-1">{formatCurrency(totalFees)}</p>
         </Card>
 
         <Card className="p-4 bg-blue-50/50 border-blue-200">
-          <p className="text-xs text-blue-800 font-medium">Total Principal & Interest Collected</p>
+          <p className="text-xs text-blue-800 font-medium">Repayments collected</p>
           <p className="text-xl font-bold text-blue-800 mt-1">{formatCurrency(totalRepaid)}</p>
         </Card>
 
         <Card className="p-4 bg-purple-50/50 border-purple-200">
-          <p className="text-xs text-purple-800 font-medium">Total Outstanding On Books</p>
+          <p className="text-xs text-purple-800 font-medium">Still outstanding</p>
           <p className="text-xl font-black text-purple-900 mt-1">{formatCurrency(totalOutstanding)}</p>
         </Card>
       </div>
@@ -84,37 +93,44 @@ export default async function ReportsPage() {
         <CardHeader className="pb-3">
           <CardTitle className="text-base text-gray-900 flex items-center gap-2">
             <BookOpen className="h-4 w-4 text-blue-600" />
-            Client Summary Ledger (SQL Derived View)
+            Loan ledger
           </CardTitle>
           <CardDescription className="text-xs">
-            Aggregated dynamically from append-only transaction debits and credits.
+            Each row is one loan. Cash paid out is the principal after the processing fee. Installments are due on Sunday.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="rounded-lg border border-gray-200 overflow-hidden">
+          <div className="rounded-lg border border-gray-200 overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Account #</TableHead>
-                  <TableHead>Client Name</TableHead>
-                  <TableHead>Loan #</TableHead>
+                  <TableHead>Account</TableHead>
+                  <TableHead>Client</TableHead>
+                  <TableHead>Loan</TableHead>
+                  <TableHead>Terms</TableHead>
                   <TableHead className="text-right">Principal</TableHead>
-                  <TableHead className="text-right">Total Repayable</TableHead>
-                  <TableHead className="text-right">Total Repaid</TableHead>
-                  <TableHead className="text-right">Outstanding Balance</TableHead>
+                  <TableHead className="text-right">Cash paid out</TableHead>
+                  <TableHead className="text-right">Processing fee</TableHead>
+                  <TableHead className="text-right">Installment</TableHead>
+                  <TableHead className="text-right">Repaid</TableHead>
+                  <TableHead className="text-right">Outstanding</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Disbursed</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {!ledgerRows || ledgerRows.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="h-24 text-center text-gray-400 text-xs">
+                    <TableCell colSpan={11} className="h-24 text-center text-gray-400 text-xs">
                       No ledger records found.
                     </TableCell>
                   </TableRow>
                 ) : (
-                  ledgerRows.map((row) => (
+                  ledgerRows.map((row) => {
+                    const monthly = (row as any).payment_frequency === 'monthly'
+                    const periods = monthly
+                      ? Number((row as any).term_months || row.term_weeks) || 1
+                      : Number(row.term_weeks) || 13
+                    return (
                     <TableRow key={row.loan_id} className="hover:bg-slate-50/80 text-xs">
                       <TableCell className="font-mono font-bold text-blue-700">
                         {row.account_number}
@@ -125,11 +141,21 @@ export default async function ReportsPage() {
                       <TableCell className="font-mono font-medium text-gray-700">
                         {row.loan_number}
                       </TableCell>
+                      <TableCell className="text-gray-700 whitespace-nowrap">
+                        {monthly ? `${periods} monthly Sundays` : `${periods} Sundays`}
+                      </TableCell>
                       <TableCell className="text-right text-gray-800">
                         {formatCurrency(row.principal)}
                       </TableCell>
                       <TableCell className="text-right font-medium text-gray-900">
-                        {formatCurrency(row.total_repayable)}
+                        {formatCurrency(row.total_disbursed)}
+                      </TableCell>
+                      <TableCell className="text-right text-gray-700">
+                        {formatCurrency(row.total_fees_collected)}
+                      </TableCell>
+                      <TableCell className="text-right text-gray-800 whitespace-nowrap">
+                        {formatCurrency(row.weekly_installment)}
+                        <span className="text-gray-400"> {monthly ? '/ mo' : '/ Sun'}</span>
                       </TableCell>
                       <TableCell className="text-right font-bold text-emerald-700">
                         {formatCurrency(row.total_repaid)}
@@ -144,11 +170,9 @@ export default async function ReportsPage() {
                           {row.loan_status}
                         </span>
                       </TableCell>
-                      <TableCell className="text-gray-500 whitespace-nowrap">
-                        {formatDate(row.disbursement_date)}
-                      </TableCell>
                     </TableRow>
-                  ))
+                    )
+                  })
                 )}
               </TableBody>
             </Table>
@@ -161,18 +185,18 @@ export default async function ReportsPage() {
         <CardHeader className="pb-3">
           <CardTitle className="text-base text-gray-900 flex items-center gap-2">
             <TrendingUp className="h-4 w-4 text-emerald-600" />
-            Weekly Collection & Recovery Performance
+            Sunday collections
           </CardTitle>
           <CardDescription className="text-xs">
-            Targeted weekly installment collections vs actual money recovered
+            Each row is the week that ends on the collection Sunday. Expected installments compared with money collected.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="rounded-lg border border-gray-200 overflow-hidden">
+          <div className="rounded-lg border border-gray-200 overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Week Commencing</TableHead>
+                  <TableHead>Collection Sunday</TableHead>
                   <TableHead className="text-center">Loans Due</TableHead>
                   <TableHead className="text-right">Expected Collections</TableHead>
                   <TableHead className="text-right">Actual Collected</TableHead>
@@ -184,14 +208,14 @@ export default async function ReportsPage() {
                 {!weeklyPerf || weeklyPerf.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={6} className="h-20 text-center text-gray-400 text-xs">
-                      No weekly performance data recorded.
+                      No Sunday collections recorded yet.
                     </TableCell>
                   </TableRow>
                 ) : (
                   weeklyPerf.map((wp: any, i: number) => (
                     <TableRow key={i} className="text-xs">
                       <TableCell className="font-semibold text-gray-800">
-                        {formatDate(wp.week_start)}
+                        {formatDate(collectionSunday(wp.week_start))}
                       </TableCell>
                       <TableCell className="text-center font-mono">
                         {wp.loans_due}

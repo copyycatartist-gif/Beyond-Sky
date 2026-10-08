@@ -4,7 +4,7 @@ import { canSeeSuperAdmin } from '@/lib/roles'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import {
-  ArrowLeft, Phone, MapPin, Briefcase, UserCheck, Shield, FileText, PlusCircle,
+  ArrowLeft, Phone, MapPin, Briefcase, Shield, FileText, PlusCircle,
   CreditCard, Building2, User, Church, HeartHandshake,
   MessageSquare, Clock, AlertTriangle, Star, Crown, Zap, ShieldAlert,
   TrendingUp, Calendar, ExternalLink, Eye, Activity, StickyNote, ChevronRight,
@@ -116,24 +116,9 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
     new Set(notesRaw.map((n: any) => n.created_by).filter(Boolean))
   ) as string[]
 
-  const [gClientRes, noteAuthorsRes] = await Promise.all([
-    (client as any).guarantor_account_number
-      ? supabase
-          .from('clients')
-          .select('id, full_name, account_number')
-          .eq('account_number', (client as any).guarantor_account_number)
-          .neq('id', params.id)
-          .maybeSingle()
-      : Promise.resolve({ data: null as any }),
-    noteAuthorIds.length > 0
-      ? supabase.from('users').select('id, full_name, role').in('id', noteAuthorIds)
-      : Promise.resolve({ data: [] as any[] }),
-  ])
-
-  const gClient = gClientRes.data
-  const guarantorClient: { id: string; full_name: string; account_number: string } | null = gClient
-    ? (gClient as any)
-    : null
+  const noteAuthorsRes = noteAuthorIds.length > 0
+    ? await supabase.from('users').select('id, full_name, role').in('id', noteAuthorIds)
+    : { data: [] as any[] }
 
   const authorMap: Record<string, { full_name: string; role: string }> = {}
   ;((noteAuthorsRes.data as any[]) || []).forEach((u: any) => {
@@ -464,29 +449,13 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 text-xs pt-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-400">Guarantor Full Name</p>
-                  <p className="font-bold text-gray-900 text-sm mt-0.5">{client.guarantor_name}</p>
-                </div>
-                {guarantorClient && (
-                  <Link href={`/clients/${guarantorClient.id}`}>
-                    <Button variant="outline" size="sm" className="h-7 text-[11px] gap-1 border-indigo-200 text-indigo-700 hover:bg-indigo-50">
-                      <UserCheck className="h-3 w-3" />
-                      View as Client ({guarantorClient.account_number})
-                    </Button>
-                  </Link>
-                )}
+              <div>
+                <p className="text-gray-400">Guarantor Full Name</p>
+                <p className="font-bold text-gray-900 text-sm mt-0.5">{client.guarantor_name}</p>
               </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <p className="text-gray-400">Gender</p>
-                  <p className="font-medium text-gray-800 mt-0.5 capitalize">{client.guarantor_gender || 'Male'}</p>
-                </div>
-                <div>
-                  <p className="text-gray-400">Guarantor A/C #</p>
-                  <p className="font-mono text-gray-800 mt-0.5">{client.guarantor_account_number || 'N/A'}</p>
-                </div>
+              <div>
+                <p className="text-gray-400">Gender</p>
+                <p className="font-medium text-gray-800 mt-0.5 capitalize">{client.guarantor_gender || 'Male'}</p>
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
@@ -577,12 +546,15 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
                   </div>
                 </div>
                 <CardDescription className="text-xs">
-                  Disbursed on {formatDate(activeLoan.disbursement_date)} • {activeLoan.term_weeks || 13}-week term
+                  Disbursed on {formatDate(activeLoan.disbursement_date)} •{' '}
+                  {activeLoan.payment_frequency === 'monthly'
+                    ? `${activeLoan.term_months || activeLoan.term_weeks || 1} monthly Sunday payments`
+                    : `${activeLoan.term_weeks || 13} Sunday payments`}
                 </CardDescription>
               </CardHeader>
               <CardContent className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
                 <div className="p-3 bg-white rounded-lg border border-emerald-100">
-                  <p className="text-gray-500">Gross Facility</p>
+                  <p className="text-gray-500">Principal</p>
                   <p className="text-base font-bold text-gray-900 mt-0.5">{formatCurrency(activeLoan.principal)}</p>
                 </div>
                 <div className="p-3 bg-white rounded-lg border border-emerald-100">
@@ -590,11 +562,11 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
                   <p className="text-base font-bold text-gray-900 mt-0.5">{formatCurrency(activeLoan.total_repayable)}</p>
                 </div>
                 <div className="p-3 bg-white rounded-lg border border-emerald-100">
-                  <p className="text-gray-500">Weekly Installment</p>
+                  <p className="text-gray-500">{activeLoan.payment_frequency === 'monthly' ? 'Monthly installment' : 'Sunday installment'}</p>
                   <p className="text-base font-bold text-blue-600 mt-0.5">{formatCurrency(activeLoan.weekly_installment)}</p>
                 </div>
                 <div className="p-3 bg-white rounded-lg border border-emerald-100">
-                  <p className="text-gray-500">Net Disbursed</p>
+                  <p className="text-gray-500">Cash paid out</p>
                   <p className="text-base font-bold text-emerald-700 mt-0.5">{formatCurrency(activeLoan.net_disbursement_amount || activeLoan.amount_disbursed_to_client)}</p>
                 </div>
               </CardContent>

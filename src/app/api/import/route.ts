@@ -230,7 +230,6 @@ async function handleClientsMigration(rows: any[], userId: string, adminClient: 
 
           guarantor_name: guarantorName,
           guarantor_gender: rawGender,
-          guarantor_account_number: null,
           guarantor_phone: guarantorPhone,
           guarantor_national_id: null,
           guarantor_relationship: null,

@@ -117,7 +117,6 @@ export interface Database {
           religious_leader_phone: string | null
           guarantor_name: string
           guarantor_gender: string | null
-          guarantor_account_number: string | null
           guarantor_phone: string
           guarantor_national_id: string | null
           guarantor_relationship: string | null
@@ -164,7 +163,6 @@ export interface Database {
           religious_leader_phone?: string | null
           guarantor_name: string
           guarantor_gender?: string | null
-          guarantor_account_number?: string | null
           guarantor_phone: string
           guarantor_national_id: string | null
           guarantor_relationship: string | null
@@ -218,7 +216,6 @@ export interface Database {
           religious_leader_phone?: string | null
           guarantor_name?: string
           guarantor_gender?: string | null
-          guarantor_account_number?: string | null
           guarantor_phone?: string
           guarantor_national_id?: string | null
           guarantor_relationship?: string | null
@@ -828,6 +825,8 @@ export interface Database {
           total_repaid: number
           total_reversals: number
           outstanding_balance: number
+          payment_frequency: string | null
+          term_months: number | null
         }
         Relationships: []
       }

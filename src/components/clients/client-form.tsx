@@ -367,7 +367,6 @@ export function ClientForm() {
           religious_leader_phone: (formData.religious_leader_phone as string)?.replace(/\s/g, '') || null,
           guarantor_name: formData.guarantor_name.trim(),
           guarantor_gender: formData.guarantor_gender,
-          guarantor_account_number: null,
           guarantor_phone: (formData.guarantor_phone as string).replace(/\s/g, ''),
           guarantor_national_id: null,
           guarantor_relationship: null,

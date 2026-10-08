@@ -69,7 +69,6 @@ export interface ContractClient {
   guarantor_national_id: Nullable<string>
   guarantor_business: Nullable<string>
   guarantor_gender: Nullable<string>
-  guarantor_account_number: Nullable<string>
   guarantor_occupation: Nullable<string>
   guarantor_employer: Nullable<string>
   guarantor_dob: Nullable<string>
