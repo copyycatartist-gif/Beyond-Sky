@@ -9,13 +9,13 @@ import {
 } from './calculations'
 
 describe('computeDeductions', () => {
-  test('applies the 12% schedule to a 2000 principal', () => {
+  test('charges nothing unless a percentage is passed in', () => {
     const d = computeDeductions(2000)
-    expect(d.securityDepositAmount).toBe(200) // 10%
-    expect(d.processingFeeAmount).toBe(20) // 1%
-    expect(d.loanRiskFundAmount).toBe(20) // 1%
-    expect(d.totalDeductions).toBe(240) // 12%
-    expect(TOTAL_DEDUCTION_PCT).toBeCloseTo(0.12, 5)
+    expect(d.securityDepositAmount).toBe(0)
+    expect(d.processingFeeAmount).toBe(0)
+    expect(d.loanRiskFundAmount).toBe(0)
+    expect(d.totalDeductions).toBe(0)
+    expect(TOTAL_DEDUCTION_PCT).toBe(0)
   })
 
   test('handles zero and non-numeric principal', () => {
@@ -26,7 +26,7 @@ describe('computeDeductions', () => {
   test('honours percentage overrides', () => {
     const d = computeDeductions(1000, { processingFee: 0.02 })
     expect(d.processingFeeAmount).toBe(20)
-    expect(d.totalDeductions).toBe(130)
+    expect(d.totalDeductions).toBe(20)
   })
 })
 
@@ -81,8 +81,8 @@ describe('buildAmortizationSchedule', () => {
       startDate: '2026-01-01',
     })
     expect(rows).toHaveLength(13)
-    expect(rows[0].dueDate).toBe('2026-01-08')
-    expect(rows[1].dueDate).toBe('2026-01-15')
+    expect(rows[0].dueDate).toBe('2026-01-04')
+    expect(rows[1].dueDate).toBe('2026-01-11')
     expect(rows[12].cumulativeExpected).toBe(2730)
   })
 })
@@ -97,8 +97,8 @@ describe('calculateLoan', () => {
       eligibilityRatio: 0.3,
       refinanceBalance: 0,
     })
-    expect(c.totalDeductions).toBe(240)
-    expect(c.netDisbursement).toBe(1760) // 2000 - 240
+    expect(c.totalDeductions).toBe(0)
+    expect(c.netDisbursement).toBe(2000)
     expect(c.totalRepayable).toBe(2730)
     expect(c.weeklyInstallment).toBe(210)
     expect(c.eligibility.flag).toBe('eligible')

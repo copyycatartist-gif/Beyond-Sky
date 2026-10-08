@@ -5,11 +5,7 @@ import { Printer, ArrowLeft, Download } from 'lucide-react'
 import Link from 'next/link'
 import { formatDate } from '@/lib/utils'
 import {
-  computeDeductions,
   round2,
-  SECURITY_DEPOSIT_PCT,
-  PROCESSING_FEE_PCT,
-  LOAN_RISK_FUND_PCT,
   PENAL_RATE_MONTHLY,
 } from '@/lib/loans/calculations'
 
@@ -114,24 +110,7 @@ export function PrintableLoanContract({ loan, client, settings }: LoanContractPr
     return isNaN(v) ? fallback : v
   }
   const principal = num(loan.principal, 0)
-  const secPct = num(loan.security_deposit_pct, settingNum('security_deposit_percentage', SECURITY_DEPOSIT_PCT))
-  const feePct = num(loan.processing_fee_pct, settingNum('processing_fee_percentage', PROCESSING_FEE_PCT))
-  const riskPct = num(loan.loan_risk_fund_pct, settingNum('loan_risk_fund_percentage', LOAN_RISK_FUND_PCT))
   const branch = txt(client.branch || settings['default_branch'] || null)
-
-  // ---- Authoritative deduction figures: stored columns first, shared math as fallback ----
-  const computed = computeDeductions(principal, {
-    securityDeposit: secPct,
-    processingFee: feePct,
-    loanRiskFund: riskPct,
-  })
-  const securityDeposit = num(loan.security_deposit_amount, computed.securityDepositAmount)
-  const processingFee = num(loan.processing_fee_amount, computed.processingFeeAmount)
-  const riskFund = num(loan.loan_risk_fund_amount, computed.loanRiskFundAmount)
-  const totalDeductions = num(loan.total_deductions, computed.totalDeductions)
-  const netDisbursement = num(loan.net_disbursement_amount, round2(principal - totalDeductions))
-  const totalDeductionPct = round2((secPct + feePct + riskPct) * 100)
-  const netPct = round2(100 - totalDeductionPct)
 
   // ---- Rates / terms ----
   const monthlyRate = loan.monthly_interest_rate != null && loan.monthly_interest_rate !== ''
@@ -405,12 +384,8 @@ export function PrintableLoanContract({ loan, client, settings }: LoanContractPr
             {/* Contract Terms Continuation */}
             <div className="mt-4 space-y-2.5 text-justify text-[12.5px] leading-relaxed">
               <p className="break-inside-avoid">
-                As part of the security for the facility, I agree to pay{' '}
-                <strong>{round2(secPct * 100)}% (GH¢ {securityDeposit.toFixed(2)})</strong> of the principal amount as <strong>security deposit</strong>,{' '}
-                <strong>{round2(feePct * 100)}% (GH¢ {processingFee.toFixed(2)})</strong> as <strong>processing fees</strong> and{' '}
-                <strong>{round2(riskPct * 100)}% (GH¢ {riskFund.toFixed(2)})</strong> as <strong>loan risk fund</strong>. Total upfront deduction is{' '}
-                <strong>{totalDeductionPct}% (GH¢ {totalDeductions.toFixed(2)})</strong>, with a net disbursement of{' '}
-                <strong>{netPct}% (GH¢ {netDisbursement.toFixed(2)})</strong>.
+                The full principal of <strong>GH¢ {principal.toFixed(2)}</strong> is paid to me.
+                Repayments are due on Sunday, beginning the Sunday after the loan is disbursed.
               </p>
               <p className="break-inside-avoid">
                 Again, I agree to the <strong>group guarantee principle</strong> which has been explained to me by Beyond Sky Micro-Credit Enterprise. I also do promise to oblige by the rules and regulations in connection with the interest in full under all circumstances even in the event of loss or damage of loan amount or assets respectively.

@@ -67,7 +67,7 @@ const draftKey = (clientId: string) => `beyond-sky-loan-draft:${clientId}`
 const STEPS = [
   { n: 1, label: 'Client', icon: Users },
   { n: 2, label: 'Amount & Terms', icon: Banknote },
-  { n: 3, label: 'Deductions', icon: Calculator },
+  { n: 3, label: 'Terms', icon: Calculator },
   { n: 4, label: 'Guarantor', icon: UserCheck },
   { n: 5, label: 'Review & Submit', icon: ClipboardList },
 ]
@@ -82,7 +82,6 @@ export function LoanApplicationForm({
   clients: ClientOption[]
   settings: {
     interestMultiplier: number
-    feePercentage: number
     termWeeks: number
     minLoan: number
     maxLoan: number
@@ -701,33 +700,14 @@ export function LoanApplicationForm({
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-bold uppercase tracking-wider text-blue-950 flex items-center gap-1.5">
                 <Calculator className="h-4 w-4 text-blue-600" />
-                3. Contract Terms & Deductions
+                3. Cash to the client and the Sunday schedule
               </CardTitle>
               <CardDescription className="text-xs">
-                Official Beyond Sky Microcredit deduction schedule
+                The full principal is paid out. The first installment is the next Sunday after disbursement.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3 text-xs">
-              {summaryRow('Gross Facility Principal:', formatCurrency(calc.principal), true)}
-
-              <div className="space-y-1.5 bg-white/70 p-2.5 rounded-lg border border-blue-100">
-                <div className="flex justify-between text-gray-600">
-                  <span>{Math.round(calc.securityDepositPct * 100)}% Security Deposit:</span>
-                  <span className="font-semibold text-amber-700">−{formatCurrency(calc.securityDepositAmount)}</span>
-                </div>
-                <div className="flex justify-between text-gray-600">
-                  <span>{Math.round(calc.processingFeePct * 100)}% Processing Fee:</span>
-                  <span className="font-semibold text-red-600">−{formatCurrency(calc.processingFeeAmount)}</span>
-                </div>
-                <div className="flex justify-between text-gray-600">
-                  <span>{Math.round(calc.loanRiskFundPct * 100)}% Loan Risk Fund:</span>
-                  <span className="font-semibold text-red-600">−{formatCurrency(calc.loanRiskFundAmount)}</span>
-                </div>
-                <div className="flex justify-between pt-1 border-t border-gray-100 font-bold text-gray-900">
-                  <span>Total Upfront Deductions ({Math.round(calc.totalDeductions / (calc.principal || 1) * 100)}%):</span>
-                  <span className="text-rose-700">−{formatCurrency(calc.totalDeductions)}</span>
-                </div>
-              </div>
+              {summaryRow('Principal paid to the client:', formatCurrency(calc.principal), true)}
 
               {isRefinancing && calc.refinanceBalance > 0 && (
                 <div className="flex justify-between py-1.5 bg-purple-100 px-2 rounded font-medium text-purple-900">
@@ -737,7 +717,7 @@ export function LoanApplicationForm({
               )}
 
               <div className="flex justify-between py-2 bg-emerald-50 border border-emerald-200 px-2.5 rounded-lg font-bold">
-                <span className="text-emerald-950">Net Disbursed to Client:</span>
+                <span className="text-emerald-950">Cash to client{isRefinancing && calc.refinanceBalance > 0 ? ' after refinancing' : ''}:</span>
                 <span className="text-sm text-emerald-700">{formatCurrency(calc.netDisbursement)}</span>
               </div>
 
@@ -748,11 +728,13 @@ export function LoanApplicationForm({
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Tenor:</span>
-                  <span className="font-semibold text-gray-800">{calc.termWeeks} weekly installments</span>
+                  <span className="font-semibold text-gray-800">
+                    {isMonthly ? `${calc.termWeeks} monthly Sunday payments` : `${calc.termWeeks} Sunday payments`}
+                  </span>
                 </div>
                 <div className="flex justify-between text-blue-700 font-bold">
-                  <span>Weekly Installment:</span>
-                  <span className="text-sm">{formatCurrency(calc.weeklyInstallment)} / wk</span>
+                  <span>Installment:</span>
+                  <span className="text-sm">{formatCurrency(calc.weeklyInstallment)} / {isMonthly ? 'month' : 'Sunday'}</span>
                 </div>
               </div>
 
@@ -768,7 +750,9 @@ export function LoanApplicationForm({
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-bold text-gray-900">Repayment Schedule Preview</CardTitle>
               <CardDescription className="text-xs">
-                {calc.termWeeks} equal weekly installments of {formatCurrency(calc.weeklyInstallment)}.
+                {isMonthly
+                  ? `${calc.termWeeks} Sunday payments, one each month, of ${formatCurrency(calc.weeklyInstallment)}.`
+                  : `${calc.termWeeks} Sunday payments of ${formatCurrency(calc.weeklyInstallment)}.`}
               </CardDescription>
             </CardHeader>
             <CardContent className="p-0">
@@ -888,9 +872,8 @@ export function LoanApplicationForm({
                 )}
                 {summaryRow('Principal:', formatCurrency(calc.principal), true)}
                 {summaryRow('Interest Multiplier:', `${calc.interestMultiplier}x`)}
-                {summaryRow('Term:', `${calc.termWeeks} weekly installments`)}
-                {summaryRow('Total Deductions (12%):', `−${formatCurrency(calc.totalDeductions)}`)}
-                {summaryRow('Net Disbursement:', formatCurrency(calc.netDisbursement), true)}
+                {summaryRow('Term:', isMonthly ? `${calc.termWeeks} monthly Sunday payments` : `${calc.termWeeks} Sunday payments`)}
+                {summaryRow('Cash to client:', formatCurrency(calc.netDisbursement), true)}
                 {summaryRow('Total Repayable:', formatCurrency(calc.totalRepayable), true)}
                 {summaryRow('Weekly Installment:', `${formatCurrency(calc.weeklyInstallment)} / wk`, true)}
                 {summaryRow('Agreement Jurisdiction:', `${agreementTown}, ${agreementDistrict}, ${agreementRegion}`)}

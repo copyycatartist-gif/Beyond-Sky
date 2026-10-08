@@ -57,7 +57,7 @@ export function humanizeStatus(status: string): string {
 export function computeLoanAmounts({
   principal,
   interestMultiplier = 1.365,
-  feePercentage = 0.05,
+  feePercentage = 0,
   termWeeks = 13,
 }: {
   principal: number

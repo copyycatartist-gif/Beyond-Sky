@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useToast } from '@/components/ui/use-toast'
 import { formatCurrency } from '@/lib/utils'
-import { computeDeductions, computeNetDisbursement, round2, MONTHLY_INTEREST_RATES } from '@/lib/loans/calculations'
+import { computeNetDisbursement, round2, MONTHLY_INTEREST_RATES } from '@/lib/loans/calculations'
 import { CheckCircle2, XCircle, Banknote, Loader2 } from 'lucide-react'
 
 type ActionKind = 'approve' | 'reject' | 'disburse' | null
@@ -55,12 +55,7 @@ export function LoanActions({
   const isManagerOrAdmin = userRole === 'manager' || userRole === 'accountant_admin'
   const isBusy = loadingAction !== null
 
-  // ---- Preview math: shared loan calculations (matches the disburse_loan RPC) ----
-  const breakdown = computeDeductions(loan.principal)
-  // Authoritative deductions: the stored 12% total_deductions on the loan; fall
-  // back to the computed schedule when the column is absent (legacy rows).
-  const totalDeductions =
-    loan.total_deductions != null ? round2(Number(loan.total_deductions)) : breakdown.totalDeductions
+  const totalDeductions = round2(Number(loan.total_deductions) || 0)
   const netToClient = computeNetDisbursement({
     principal: loan.principal,
     totalDeductions,
@@ -339,24 +334,8 @@ export function LoanActions({
           <div className="space-y-4 py-2 text-xs">
             <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 space-y-1.5">
               <div className="flex justify-between">
-                <span className="text-gray-500">Gross Principal:</span>
+                <span className="text-gray-500">Principal paid to client:</span>
                 <span className="font-bold text-gray-900">{formatCurrency(loan.principal)}</span>
-              </div>
-              <div className="flex justify-between text-amber-700 font-medium">
-                <span>10% Security Deposit (Collateral):</span>
-                <span>−{formatCurrency(breakdown.securityDepositAmount)}</span>
-              </div>
-              <div className="flex justify-between text-rose-600">
-                <span>1% Processing Fee:</span>
-                <span>−{formatCurrency(breakdown.processingFeeAmount)}</span>
-              </div>
-              <div className="flex justify-between text-rose-600">
-                <span>1% Loan Risk Fund:</span>
-                <span>−{formatCurrency(breakdown.loanRiskFundAmount)}</span>
-              </div>
-              <div className="flex justify-between font-semibold text-gray-700">
-                <span>Total Deductions (12%):</span>
-                <span>−{formatCurrency(totalDeductions)}</span>
               </div>
               {oldLoanBalance > 0 && (
                 <div className="flex justify-between text-purple-700 font-medium">
@@ -365,7 +344,7 @@ export function LoanActions({
                 </div>
               )}
               <div className="flex justify-between pt-1 border-t border-slate-300 font-bold text-sm text-emerald-700">
-                <span>Net Cash Disbursed to Client (88%):</span>
+                <span>Cash to client:</span>
                 <span>{formatCurrency(netToClient)}</span>
               </div>
             </div>

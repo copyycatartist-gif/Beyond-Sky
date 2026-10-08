@@ -6,12 +6,11 @@
  * figures never diverge.
  */
 
-export const SECURITY_DEPOSIT_PCT = 0.1
-export const PROCESSING_FEE_PCT = 0.01
-export const LOAN_RISK_FUND_PCT = 0.01
-export const TOTAL_DEDUCTION_PCT =
-  SECURITY_DEPOSIT_PCT + PROCESSING_FEE_PCT + LOAN_RISK_FUND_PCT // 0.12
-export const NET_DISBURSEMENT_PCT = 1 - TOTAL_DEDUCTION_PCT // 0.88
+export const SECURITY_DEPOSIT_PCT = 0
+export const PROCESSING_FEE_PCT = 0
+export const LOAN_RISK_FUND_PCT = 0
+export const TOTAL_DEDUCTION_PCT = 0
+export const NET_DISBURSEMENT_PCT = 1
 export const PENAL_RATE_MONTHLY = 5.0 // 5% per month over prevailing rate
 
 /** Flat monthly rates the client may request. Approver may change among these. */
@@ -36,8 +35,8 @@ export interface DeductionBreakdown {
 }
 
 /**
- * The 12% upfront deduction schedule (10% security deposit + 1% processing
- * fee + 1% loan risk fund). Percentages can be overridden from settings.
+ * Upfront deductions are no longer taken. The helpers stay so older screens
+ * can still show a stored historical figure when one is passed in.
  */
 export function computeDeductions(
   principal: number,
@@ -96,9 +95,8 @@ export function computeLoanTerms({
 }
 
 /**
- * Cash actually handed to the client:
- * principal − total upfront deductions − outstanding balance of a refinanced loan.
- * Never negative.
+ * Cash handed to the client: principal minus any stored historical deduction
+ * and the balance of a refinanced loan. Never negative.
  */
 export function computeNetDisbursement({
   principal,
@@ -147,16 +145,38 @@ export interface ScheduleRow {
   cumulativeExpected: number
 }
 
+/** First repayment Sunday after this date. A Sunday disbursement pays the following Sunday. */
+export function nextPaymentSunday(start: Date): Date {
+  const due = new Date(start.getTime())
+  due.setHours(12, 0, 0, 0)
+  const weekday = due.getDay()
+  due.setDate(due.getDate() + (weekday === 0 ? 7 : 7 - weekday))
+  return due
+}
+
+function sundayOnOrAfter(date: Date): Date {
+  const due = new Date(date.getTime())
+  due.setHours(12, 0, 0, 0)
+  const weekday = due.getDay()
+  if (weekday !== 0) due.setDate(due.getDate() + (7 - weekday))
+  return due
+}
+
+function formatDateOnly(date: Date): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 /**
- * Preview amortization schedule: `termWeeks` equal weekly installments starting
- * `firstDueOffsetDays` after `startDate`. Mirrors the Postgres
- * `generate_repayment_schedule` trigger closely enough for on-screen previews.
+ * Preview schedule. Weekly rows are every Sunday. Monthly rows start on the
+ * next Sunday, then land on a Sunday in each following month.
  */
 export function buildAmortizationSchedule({
   weeklyInstallment,
   termWeeks,
   startDate = new Date(),
-  firstDueOffsetDays = 7,
   interval = 'week',
 }: {
   weeklyInstallment: number
@@ -165,22 +185,26 @@ export function buildAmortizationSchedule({
   firstDueOffsetDays?: number
   interval?: 'week' | 'month'
 }): ScheduleRow[] {
-  const weeks = Math.max(1, Math.round(Number(termWeeks) || 1))
-  const base = typeof startDate === 'string' ? new Date(startDate) : startDate
+  const periods = Math.max(1, Math.round(Number(termWeeks) || 1))
+  const base = typeof startDate === 'string' ? new Date(`${startDate.slice(0, 10)}T12:00:00`) : startDate
   const start = isNaN(base.getTime()) ? new Date() : base
+  const firstSunday = nextPaymentSunday(start)
   const rows: ScheduleRow[] = []
   let cumulative = 0
-  for (let i = 1; i <= weeks; i++) {
-    const due = new Date(start.getTime())
+  for (let i = 1; i <= periods; i++) {
+    let due: Date
     if (interval === 'month') {
-      due.setMonth(due.getMonth() + i)
+      const anchor = new Date(firstSunday.getTime())
+      anchor.setMonth(anchor.getMonth() + (i - 1))
+      due = sundayOnOrAfter(anchor)
     } else {
-      due.setDate(due.getDate() + firstDueOffsetDays + (i - 1) * 7)
+      due = new Date(firstSunday.getTime())
+      due.setDate(due.getDate() + (i - 1) * 7)
     }
     cumulative = round2(cumulative + (Number(weeklyInstallment) || 0))
     rows.push({
       installmentNumber: i,
-      dueDate: due.toISOString().split('T')[0],
+      dueDate: formatDateOnly(due),
       expectedAmount: round2(Number(weeklyInstallment) || 0),
       cumulativeExpected: cumulative,
     })

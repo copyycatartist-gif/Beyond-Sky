@@ -421,9 +421,9 @@ async function handleLoansMigration(rows: any[], userId: string, adminClient: an
   ;(settingsRows || []).forEach((r: any) => { settingsMap[r.key] = r.value })
 
   const defaultMultiplier = parseFloat(settingsMap['interest_multiplier'] || '1.365')
-  const defaultFeePct = parseFloat(settingsMap['fee_percentage'] || '0.01')
-  const defaultSecPct = parseFloat(settingsMap['security_deposit_percentage'] || '0.10')
-  const defaultRiskPct = parseFloat(settingsMap['loan_risk_fund_percentage'] || '0.01')
+  const defaultFeePct = 0
+  const defaultSecPct = 0
+  const defaultRiskPct = 0
   const defaultTerm = parseInt(settingsMap['term_weeks'] || '13', 10)
 
   for (let i = 0; i < rows.length; i++) {
@@ -679,7 +679,6 @@ async function handleLegacyCompositeMigration(rows: any[], userId: string, admin
   ;(settingsRows || []).forEach((r: any) => { settingsMap[r.key] = r.value })
 
   const multiplier = parseFloat(settingsMap['interest_multiplier'] || '1.365')
-  const feePct = parseFloat(settingsMap['fee_percentage'] || '0.05')
   const term = parseInt(settingsMap['term_weeks'] || '13', 10)
 
   for (let i = 0; i < rows.length; i++) {
@@ -723,17 +722,16 @@ async function handleLegacyCompositeMigration(rows: any[], userId: string, admin
 
       // Create Active Loan
       const disbDate = row.disbursementDate || new Date().toISOString().split('T')[0]
-      const fee = Math.round(principal * feePct * 100) / 100
       const totalRepayable = Math.round(principal * multiplier * 100) / 100
       const weekly = Math.round((totalRepayable / term) * 100) / 100
-      const netDisbursed = principal - fee
+      const netDisbursed = principal
 
       const { data: loan, error: loanErr } = await adminClient
         .from('loans')
         .insert({
           client_id: client.id,
           principal,
-          fee_amount: fee,
+          fee_amount: 0,
           interest_multiplier: multiplier,
           total_repayable: totalRepayable,
           weekly_installment: weekly,
@@ -751,28 +749,16 @@ async function handleLegacyCompositeMigration(rows: any[], userId: string, admin
       if (loanErr) throw loanErr
 
       // Post Transactions
-      await adminClient.from('transactions').insert([
-        {
-          loan_id: loan.id,
-          client_id: client.id,
-          type: 'disbursement',
-          amount: netDisbursed,
-          direction: 'debit',
-          method: 'cash',
-          recorded_by: userId,
-          transaction_date: disbDate,
-        },
-        {
-          loan_id: loan.id,
-          client_id: client.id,
-          type: 'fee',
-          amount: fee,
-          direction: 'credit',
-          method: 'cash',
-          recorded_by: userId,
-          transaction_date: disbDate,
-        },
-      ])
+      await adminClient.from('transactions').insert({
+        loan_id: loan.id,
+        client_id: client.id,
+        type: 'disbursement',
+        amount: netDisbursed,
+        direction: 'debit',
+        method: 'cash',
+        recorded_by: userId,
+        transaction_date: disbDate,
+      })
 
       const totalPaidSoFar = parseFloat(row.totalPaid || '0')
       if (!isNaN(totalPaidSoFar) && totalPaidSoFar > 0) {
@@ -833,9 +819,9 @@ async function handleGroup13WeekLedgerMigration(rows: any[], userId: string, adm
   })
 
   const multiplier = parseFloat(settingsMap['interest_multiplier'] || '1.365')
-  const feePct = parseFloat(settingsMap['fee_percentage'] || '0.01')
-  const secPct = parseFloat(settingsMap['security_deposit_percentage'] || '0.10')
-  const riskPct = parseFloat(settingsMap['loan_risk_fund_percentage'] || '0.01')
+  const feePct = 0
+  const secPct = 0
+  const riskPct = 0
   const termWeeks = 13
 
   // Cache groups created during this batch

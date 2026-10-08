@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { cn, formatCurrency, formatDate, loanStatusBadgeClass, installmentStatusBadgeClass } from '@/lib/utils'
-import { computeDeductions, computeNetDisbursement, PENAL_RATE_MONTHLY } from '@/lib/loans/calculations'
+import { computeNetDisbursement, PENAL_RATE_MONTHLY } from '@/lib/loans/calculations'
 import { LoanActions } from '@/components/loans/loan-actions'
 import { LoanStatusActions } from '@/components/loans/loan-status-actions'
 import { LoanDetailTabs, PrintButton } from '@/components/loans/loan-detail-tabs'
@@ -111,18 +111,13 @@ export default async function LoanDetailPage({ params }: { params: { id: string 
     ? Math.max(0, Number(currentSummary.outstanding_balance))
     : scheduleBalance
 
-  // Deductions: stored columns are authoritative; computeDeductions is the fallback
-  const fallbackDed = computeDeductions(principal)
-  const storedTotalDeductions = Number(loan.total_deductions) || 0
-  const totalDeductions = storedTotalDeductions > 0 ? storedTotalDeductions : fallbackDed.totalDeductions
-  const securityDeposit = Number(loan.security_deposit_amount) || fallbackDed.securityDepositAmount
-  const processingFee = Number(loan.processing_fee_amount) || fallbackDed.processingFeeAmount
-  const loanRiskFund = Number(loan.loan_risk_fund_amount) || fallbackDed.loanRiskFundAmount
-  const storedNet = Number(loan.net_disbursement_amount) || 0
-  const netDisbursement =
-    storedNet > 0
-      ? storedNet
-      : computeNetDisbursement({ principal, totalDeductions, refinanceBalance: oldLoanBalance })
+  // Cash to the client is the full principal, less any earlier loan being refinanced.
+  const totalDeductions = Number(loan.total_deductions) || 0
+  const netDisbursement = computeNetDisbursement({
+    principal,
+    totalDeductions,
+    refinanceBalance: oldLoanBalance,
+  })
 
   // Days overdue / next due (earliest unpaid installment)
   const today = new Date()
@@ -473,34 +468,25 @@ export default async function LoanDetailPage({ params }: { params: { id: string 
         <CardHeader className="pb-3">
           <CardTitle className="text-xs font-bold uppercase tracking-wider text-blue-950 flex items-center gap-1.5">
             <ShieldCheck className="h-4 w-4 text-blue-600" />
-            Contract Deductions (12%)
+            Cash paid to the client
           </CardTitle>
           <CardDescription className="text-[11px]">
-            Derived from the loan&apos;s stored deduction columns (10% security + 1% processing + 1% risk)
-            {storedTotalDeductions === 0 && ' — computed fallback applied (stored values missing)'}
+            {totalDeductions > 0
+              ? 'This older contract still has an upfront deduction on file.'
+              : 'The full principal is paid out. Repayments are due on Sunday.'}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-2 text-xs">
           <div className="flex justify-between">
-            <span className="text-gray-600">Principal Facility:</span>
+            <span className="text-gray-600">Principal:</span>
             <span className="font-bold text-gray-900">{formatCurrency(principal)}</span>
           </div>
-          <div className="flex justify-between text-amber-800">
-            <span>10% Security Deposit:</span>
-            <span className="font-semibold">−{formatCurrency(securityDeposit)}</span>
-          </div>
-          <div className="flex justify-between text-red-700">
-            <span>1% Processing Fee:</span>
-            <span className="font-semibold">−{formatCurrency(processingFee)}</span>
-          </div>
-          <div className="flex justify-between text-red-700">
-            <span>1% Loan Risk Fund:</span>
-            <span className="font-semibold">−{formatCurrency(loanRiskFund)}</span>
-          </div>
-          <div className="flex justify-between font-bold text-gray-800 pt-1 border-t border-blue-200">
-            <span>Total Deductions (12%):</span>
-            <span>−{formatCurrency(totalDeductions)}</span>
-          </div>
+          {totalDeductions > 0 && (
+            <div className="flex justify-between text-amber-800">
+              <span>Earlier upfront deduction:</span>
+              <span className="font-semibold">−{formatCurrency(totalDeductions)}</span>
+            </div>
+          )}
           {oldLoanBalance > 0 && (
             <div className="flex justify-between text-purple-800">
               <span>Refinance Netting (previous loan balance):</span>
@@ -508,7 +494,7 @@ export default async function LoanDetailPage({ params }: { params: { id: string 
             </div>
           )}
           <div className="flex justify-between pt-1 border-t border-blue-200 font-bold text-emerald-800">
-            <span>Net Cash Disbursed{oldLoanBalance === 0 ? ' (88%)' : ''}:</span>
+            <span>Cash to client{oldLoanBalance > 0 ? ' after refinancing' : ''}:</span>
             <span>{formatCurrency(netDisbursement)}</span>
           </div>
           {loan.amount_disbursed_to_client != null && Number(loan.amount_disbursed_to_client) > 0 && (

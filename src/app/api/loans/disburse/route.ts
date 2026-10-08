@@ -103,8 +103,8 @@ export async function POST(request: Request) {
       )
     }
 
-    // SINGLE atomic RPC: validates status, computes net = principal −
-    // total_deductions − refinance_balance, activates the loan (fires the
+    // SINGLE atomic RPC: validates status, pays the full principal minus any
+    // refinance balance, activates the loan (fires the
     // repayment-schedule trigger), posts disbursement + fee transactions and
     // nets off / marks the previous loan 'refinanced' — all in ONE transaction.
     const { data: netDisbursed, error: rpcErr } = await adminClient.rpc(
