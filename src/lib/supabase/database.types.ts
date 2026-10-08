@@ -33,6 +33,8 @@ export type SmsMessageType =
   | 'overdue'
   | 'defaulter'
   | 'broadcast'
+  | 'application_link'
+  | 'application_code'
 export type SmsStatus = 'sent' | 'failed' | 'pending'
 
 export interface Database {

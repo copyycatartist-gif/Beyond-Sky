@@ -20,6 +20,7 @@ import { ClientEditDialog } from '@/components/clients/client-edit-dialog'
 import { ClientTasks } from '@/components/clients/client-tasks'
 import { ClientActions } from '@/components/clients/client-actions'
 import { ClientPrintButton } from '@/components/clients/client-print-button'
+import { SendLoanLinkButton } from '@/components/clients/send-loan-link-button'
 import { PhotoUpload } from '@/components/clients/photo-upload'
 import { AuditDiffViewer } from '@/components/clients/audit-diff-viewer'
 
@@ -221,12 +222,15 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
             </Link>
 
             {!activeLoan && !pendingLoan && !(client as any).is_watchlisted && !isArchived && !hasGroupRestriction && (
-              <Link href={`/loans/new?clientId=${client.id}`}>
-                <Button className="h-9 bg-blue-600 hover:bg-blue-700 gap-1.5">
-                  <PlusCircle className="h-4 w-4" />
-                  Apply for Loan
-                </Button>
-              </Link>
+              <>
+                <Link href={`/loans/new?clientId=${client.id}`}>
+                  <Button className="h-9 bg-blue-600 hover:bg-blue-700 gap-1.5">
+                    <PlusCircle className="h-4 w-4" />
+                    Apply for Loan
+                  </Button>
+                </Link>
+                <SendLoanLinkButton clientId={client.id} />
+              </>
             )}
             {hasGroupRestriction && !activeLoan && !pendingLoan && (
               <span className="inline-flex items-center gap-1.5 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800">

@@ -53,6 +53,14 @@ export const SMS_TEMPLATES = {
   /** Sent when client is flagged as defaulted */
   defaulter: (clientName: string, totalArrears: number, loanNumber: string) =>
     `Dear ${clientName}, loan ${loanNumber} is in DEFAULT. Arrears: GHS ${totalArrears.toFixed(2)}. Please contact Beyond Sky Micro-Credit Enterprise office immediately.`,
+
+  /** Private link a registered client uses to apply */
+  application_link: (clientName: string, url: string) =>
+    `Dear ${clientName}, apply for a Beyond Sky loan: ${url} Enter your account number and phone, then the code we text you. The link expires in 7 days.`,
+
+  /** One-time code for that application page */
+  application_code: (clientName: string, code: string) =>
+    `Dear ${clientName}, your Beyond Sky loan application code is ${code}. It expires in 10 minutes.`,
 } as const
 
 export type SmsTemplateKey = keyof typeof SMS_TEMPLATES

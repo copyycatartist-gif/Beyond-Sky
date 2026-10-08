@@ -13,8 +13,8 @@ export const config = {
      * - _next/image (image optimization)
      * - favicon.ico, sitemap.xml, robots.txt
      * - Static asset extensions (.svg, .png, .jpg, .woff2, etc.)
-     * - Public routes: /login, /auth/**, /api/**
+     * - Public routes: /login, /auth/**, /api/**, /apply/**
      */
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js|woff|woff2|ttf|eot)$|login|auth|api).*)',
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js|woff|woff2|ttf|eot)$|login|auth|api|apply).*)',
   ],
 }
