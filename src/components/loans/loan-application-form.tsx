@@ -13,6 +13,7 @@ import {
   calculateLoan,
   computeLoanTerms,
   buildAmortizationSchedule,
+  MONTHLY_INTEREST_RATES,
 } from '@/lib/loans/calculations'
 import {
   Loader2,
@@ -100,6 +101,12 @@ export function LoanApplicationForm({
   const [selectedClientId, setSelectedClientId] = useState(initialClientId)
   const [principal, setPrincipal] = useState<number>(2000)
   const [termWeeks, setTermWeeks] = useState<number>(settings.termWeeks || 13)
+  const [paymentFrequency, setPaymentFrequency] = useState<'weekly' | 'monthly'>('weekly')
+  const [termMonths, setTermMonths] = useState(3)
+  const [interestRate, setInterestRate] = useState<number>(0.1)
+  const isMonthly = paymentFrequency === 'monthly'
+  const activeMultiplier = isMonthly ? 1 + interestRate : settings.interestMultiplier
+  const activeTerm = isMonthly ? termMonths : termWeeks
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [draftRestored, setDraftRestored] = useState(false)
 
@@ -199,23 +206,23 @@ export function LoanApplicationForm({
     () =>
       computeLoanTerms({
         principal: principal || 0,
-        interestMultiplier: settings.interestMultiplier,
-        termWeeks,
+        interestMultiplier: activeMultiplier,
+        termWeeks: activeTerm,
       }),
-    [principal, settings.interestMultiplier, termWeeks]
+    [principal, activeMultiplier, activeTerm]
   )
 
   const calc = useMemo(
     () =>
       calculateLoan({
         principal: principal || 0,
-        interestMultiplier: settings.interestMultiplier,
-        termWeeks,
-        dailyIncome,
+        interestMultiplier: activeMultiplier,
+        termWeeks: activeTerm,
+        dailyIncome: isMonthly ? (dailyIncome * 26) / 7 : dailyIncome,
         eligibilityRatio: settings.eligibilityRatio,
         refinanceBalance: isRefinancing ? existingBalance : 0,
       }),
-    [principal, settings.interestMultiplier, termWeeks, dailyIncome, settings.eligibilityRatio, isRefinancing, existingBalance]
+    [principal, activeMultiplier, activeTerm, dailyIncome, settings.eligibilityRatio, isRefinancing, existingBalance, isMonthly]
   )
 
   const schedule = useMemo(
@@ -223,8 +230,9 @@ export function LoanApplicationForm({
       buildAmortizationSchedule({
         weeklyInstallment: calc.weeklyInstallment,
         termWeeks: calc.termWeeks,
+        interval: isMonthly ? 'month' : 'week',
       }),
-    [calc.weeklyInstallment, calc.termWeeks]
+    [calc.weeklyInstallment, calc.termWeeks, isMonthly]
   )
 
   const filteredClients = useMemo(() => {
@@ -316,7 +324,10 @@ export function LoanApplicationForm({
         body: JSON.stringify({
           clientId: selectedClientId,
           principal,
-          termWeeks,
+          paymentFrequency,
+          termWeeks: isMonthly ? termMonths : termWeeks,
+          termMonths: isMonthly ? termMonths : undefined,
+          interestRate: isMonthly ? interestRate : undefined,
           cycleNumber,
           previousLoanAmount: previousLoanAmt,
           previousLoanId: isRefinancing && activeExistingLoan ? activeExistingLoan.id : null,
@@ -610,6 +621,31 @@ export function LoanApplicationForm({
                 {errors.principal && <p className="text-xs text-red-500">{errors.principal}</p>}
               </div>
 
+              <div className="space-y-1.5 sm:col-span-2">
+                <Label>Repayment frequency *</Label>
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => setPaymentFrequency('weekly')} className={`px-3 py-2 rounded-md text-xs font-semibold border ${!isMonthly ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-200'}`}>Weekly (13 weeks)</button>
+                  <button type="button" onClick={() => setPaymentFrequency('monthly')} className={`px-3 py-2 rounded-md text-xs font-semibold border ${isMonthly ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-200'}`}>Monthly (1–6 months)</button>
+                </div>
+              </div>
+
+              {isMonthly ? (
+                <>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="termMonths">Term (months) *</Label>
+                    <select id="termMonths" value={termMonths} onChange={(e) => setTermMonths(parseInt(e.target.value, 10))} className="w-full h-10 rounded-md border border-gray-300 bg-white px-3 text-sm">
+                      {[1, 2, 3, 4, 5, 6].map((m) => <option key={m} value={m}>{m} month{m === 1 ? '' : 's'}</option>)}
+                    </select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="interestRate">Interest rate *</Label>
+                    <select id="interestRate" value={interestRate} onChange={(e) => setInterestRate(parseFloat(e.target.value))} className="w-full h-10 rounded-md border border-gray-300 bg-white px-3 text-sm">
+                      {MONTHLY_INTEREST_RATES.map((rate) => <option key={rate} value={rate}>{Math.round(rate * 100)}%</option>)}
+                    </select>
+                    <p className="text-[11px] text-gray-500">The approver can change this rate before approval.</p>
+                  </div>
+                </>
+              ) : (
               <div className="space-y-1.5">
                 <Label htmlFor="termWeeks">Repayment Term (weeks) *</Label>
                 <Input
@@ -639,6 +675,7 @@ export function LoanApplicationForm({
                 </p>
                 {errors.termWeeks && <p className="text-xs text-red-500">{errors.termWeeks}</p>}
               </div>
+              )}
             </div>
 
             {/* Preset quick buttons */}
@@ -663,13 +700,13 @@ export function LoanApplicationForm({
             <div className="p-3 bg-blue-50/60 border border-blue-100 rounded-lg text-xs space-y-1">
               <div className="flex justify-between">
                 <span className="text-gray-600">
-                  Total Repayable ({settings.interestMultiplier}x):
+                  Total Repayable ({isMonthly ? `${Math.round(interestRate * 100)}%` : `${settings.interestMultiplier}x`}):
                 </span>
                 <span className="font-bold text-gray-900">{formatCurrency(terms.totalRepayable)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">Weekly Installment over {terms.termWeeks} weeks:</span>
-                <span className="font-bold text-blue-700">{formatCurrency(terms.weeklyInstallment)} / wk</span>
+                <span className="text-gray-600">{isMonthly ? 'Monthly' : 'Weekly'} installment over {terms.termWeeks} {isMonthly ? 'months' : 'weeks'}:</span>
+                <span className="font-bold text-blue-700">{formatCurrency(terms.weeklyInstallment)} / {isMonthly ? 'mo' : 'wk'}</span>
               </div>
             </div>
 

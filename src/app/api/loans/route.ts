@@ -91,6 +91,9 @@ export async function POST(request: Request) {
     const clientId = sanitizeInput(String(raw.clientId ?? ''))
     const principal = Number(raw.principal)
     const termWeeksRaw = raw.termWeeks
+    const paymentFrequency = raw.paymentFrequency === 'monthly' ? 'monthly' : 'weekly'
+    const termMonthsRaw = raw.termMonths
+    const interestRateRaw = raw.interestRate
     const previousLoanId = sanitizeInput(String(raw.previousLoanId ?? '')) || null
     const agreementTown = sanitizeInput(String(raw.agreementTown ?? '')) || null
     const agreementDistrict = sanitizeInput(String(raw.agreementDistrict ?? '')) || null
@@ -127,6 +130,26 @@ export async function POST(request: Request) {
         { error: `Loan principal must be between GHS ${minLoan} and GHS ${maxLoan}` },
         { status: 400, headers: rlHeaders }
       )
+    }
+
+    const MONTHLY_RATES = [0.07, 0.1, 0.15, 0.3]
+    let termMonths: number | null = null
+    let interestRate: number | null = null
+    if (paymentFrequency === 'monthly') {
+      termMonths = Number(termMonthsRaw)
+      interestRate = Number(interestRateRaw)
+      if (!Number.isInteger(termMonths) || termMonths < 1 || termMonths > 6) {
+        return NextResponse.json(
+          { error: 'Monthly term must be 1 to 6 months' },
+          { status: 400, headers: rlHeaders }
+        )
+      }
+      if (!MONTHLY_RATES.includes(interestRate)) {
+        return NextResponse.json(
+          { error: 'Monthly interest must be 7%, 10%, 15%, or 30%' },
+          { status: 400, headers: rlHeaders }
+        )
+      }
     }
 
     // Optional term_weeks must be a sane integer when supplied
@@ -184,7 +207,14 @@ export async function POST(request: Request) {
       status: 'pending',
       submitted_by: user.id,
     }
-    if (termWeeks !== null) insertPayload.term_weeks = termWeeks
+    insertPayload.payment_frequency = paymentFrequency
+    if (paymentFrequency === 'monthly') {
+      insertPayload.term_months = termMonths
+      insertPayload.interest_rate = interestRate
+      insertPayload.term_weeks = termMonths
+    } else if (termWeeks !== null) {
+      insertPayload.term_weeks = termWeeks
+    }
     if (previousLoanId) insertPayload.previous_loan_id = previousLoanId
     if (agreementTown) insertPayload.agreement_town = agreementTown
     if (agreementDistrict) insertPayload.agreement_district = agreementDistrict

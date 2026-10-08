@@ -14,6 +14,11 @@ export const TOTAL_DEDUCTION_PCT =
 export const NET_DISBURSEMENT_PCT = 1 - TOTAL_DEDUCTION_PCT // 0.88
 export const PENAL_RATE_MONTHLY = 5.0 // 5% per month over prevailing rate
 
+/** Flat monthly rates the client may request. Approver may change among these. */
+export const MONTHLY_INTEREST_RATES = [0.07, 0.1, 0.15, 0.3] as const
+export const MIN_MONTHLY_TERM = 1
+export const MAX_MONTHLY_TERM = 6
+
 /** Round to 2 decimal places (GHS pesewas). */
 export function round2(n: number): number {
   return Math.round((Number(n) + Number.EPSILON) * 100) / 100
@@ -152,11 +157,13 @@ export function buildAmortizationSchedule({
   termWeeks,
   startDate = new Date(),
   firstDueOffsetDays = 7,
+  interval = 'week',
 }: {
   weeklyInstallment: number
   termWeeks: number
   startDate?: Date | string
   firstDueOffsetDays?: number
+  interval?: 'week' | 'month'
 }): ScheduleRow[] {
   const weeks = Math.max(1, Math.round(Number(termWeeks) || 1))
   const base = typeof startDate === 'string' ? new Date(startDate) : startDate
@@ -165,7 +172,11 @@ export function buildAmortizationSchedule({
   let cumulative = 0
   for (let i = 1; i <= weeks; i++) {
     const due = new Date(start.getTime())
-    due.setDate(due.getDate() + firstDueOffsetDays + (i - 1) * 7)
+    if (interval === 'month') {
+      due.setMonth(due.getMonth() + i)
+    } else {
+      due.setDate(due.getDate() + firstDueOffsetDays + (i - 1) * 7)
+    }
     cumulative = round2(cumulative + (Number(weeklyInstallment) || 0))
     rows.push({
       installmentNumber: i,

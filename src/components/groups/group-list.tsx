@@ -612,7 +612,8 @@ export function GroupList({
         aria-label="Filter by group type"
       >
         <option value="all">All Types</option>
-        <option value="solidarity">Solidarity</option>
+        <option value="solidarity">Disbursement</option>
+        <option value="disbursement">Auto cohort</option>
         <option value="individual">Individual</option>
         <option value="cooperative">Cooperative</option>
       </select>

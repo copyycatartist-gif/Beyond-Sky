@@ -21,6 +21,7 @@ interface LoanRow {
   total_repayable: number
   weekly_installment: number
   term_weeks: number
+  payment_frequency?: string | null
   status: string
   disbursement_date: string | null
   created_at: string
@@ -439,7 +440,7 @@ export function LoanList({ rows, pagination, filters, kpis, statusCounts, error 
                       {formatCurrency(loan.total_repayable)}
                     </TableCell>
                     <TableCell className="text-right font-bold text-xs text-blue-700 whitespace-nowrap">
-                      {formatCurrency(loan.weekly_installment)}/wk
+                      {formatCurrency(loan.weekly_installment)}/{loan.payment_frequency === 'monthly' ? 'mo' : 'wk'}
                     </TableCell>
                     <TableCell className="whitespace-nowrap">
                       {loan.next_due_date ? (

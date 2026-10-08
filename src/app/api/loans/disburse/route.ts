@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server'
 import { sendTemplatedSms } from '@/lib/sms/send'
 import { rateLimit, getRateLimitHeaders } from '@/lib/rate-limit'
 import { formatDate } from '@/lib/utils'
+import { assignDisbursementGroup } from '@/lib/groups/cohort'
 
 export async function POST(request: Request) {
   try {
@@ -128,6 +129,26 @@ export async function POST(request: Request) {
     }
 
     const netToClient = Number(netDisbursed ?? 0)
+
+    try {
+      const { data: disbursed } = await adminClient
+        .from('loans')
+        .select('disbursement_date, payment_frequency, client_id')
+        .eq('id', loanId)
+        .maybeSingle()
+      const row = disbursed as { disbursement_date?: string; payment_frequency?: string; client_id?: string } | null
+      if (row?.client_id) {
+        await assignDisbursementGroup(adminClient as any, {
+          clientId: row.client_id,
+          loanId,
+          frequency: row.payment_frequency === 'monthly' ? 'monthly' : 'weekly',
+          disbursedOn: row.disbursement_date || new Date().toISOString().slice(0, 10),
+          actorId: user.id,
+        })
+      }
+    } catch (cohortErr) {
+      console.error('[disbursement cohort]', cohortErr)
+    }
 
     // SMS notification — best-effort; a provider failure must NEVER fail the
     // (already committed) disbursement.

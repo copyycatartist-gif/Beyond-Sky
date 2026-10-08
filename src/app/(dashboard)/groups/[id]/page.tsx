@@ -511,7 +511,7 @@ export default async function GroupDetailPage({ params }: { params: { id: string
             <p className="text-xs text-gray-500 font-medium">Group Status</p>
             <p className="text-2xl font-black text-gray-900 capitalize">{humanizeStatus(g.status)}</p>
             <p className="text-[11px] text-gray-400">
-              {g.require_guarantor_chain ? 'Guarantor chain required' : 'Joint solidarity monitoring'}
+              Disbursement collection group
             </p>
           </div>
         </Card>
@@ -527,14 +527,6 @@ export default async function GroupDetailPage({ params }: { params: { id: string
           <TabsTrigger value="members" className="text-xs font-semibold gap-1.5 data-[state=active]:bg-white data-[state=active]:shadow-xs">
             <Users className="h-4 w-4 text-gray-600" />
             Members ({activeCount})
-          </TabsTrigger>
-          <TabsTrigger value="meetings" className="text-xs font-semibold gap-1.5 data-[state=active]:bg-white data-[state=active]:shadow-xs">
-            <Clock className="h-4 w-4 text-gray-600" />
-            Meetings ({meetings.length})
-          </TabsTrigger>
-          <TabsTrigger value="waitlist" className="text-xs font-semibold gap-1.5 data-[state=active]:bg-white data-[state=active]:shadow-xs">
-            <ListOrdered className="h-4 w-4 text-gray-600" />
-            Waitlist ({waitlistEntries.length})
           </TabsTrigger>
           <TabsTrigger value="notes" className="text-xs font-semibold gap-1.5 data-[state=active]:bg-white data-[state=active]:shadow-xs">
             <StickyNote className="h-4 w-4 text-gray-600" />

@@ -37,7 +37,7 @@ export async function POST(request: Request) {
       )
     }
 
-    const { loanId, action, rejectionReason } = await request.json()
+    const { loanId, action, rejectionReason, interestRate } = await request.json()
 
     if (!loanId || (action !== 'approve' && action !== 'reject')) {
       return NextResponse.json(
@@ -83,13 +83,26 @@ export async function POST(request: Request) {
     }
 
     if (action === 'approve') {
+      const MONTHLY_RATES = [0.07, 0.1, 0.15, 0.3]
+      const updates: Record<string, unknown> = {
+        status: 'approved',
+        approved_by: user.id,
+        approval_date: new Date().toISOString(),
+      }
+      if (loan.payment_frequency === 'monthly' && interestRate != null) {
+        const rate = Number(interestRate)
+        if (!MONTHLY_RATES.includes(rate)) {
+          return NextResponse.json(
+            { error: 'Monthly interest must be 7%, 10%, 15%, or 30%' },
+            { status: 400, headers: rateHeaders }
+          )
+        }
+        updates.interest_rate = rate
+      }
+
       const { error: updateErr } = await (adminClient as any)
         .from('loans')
-        .update({
-          status: 'approved',
-          approved_by: user.id,
-          approval_date: new Date().toISOString(),
-        })
+        .update(updates)
         .eq('id', loanId)
 
       if (updateErr) {
@@ -106,10 +119,20 @@ export async function POST(request: Request) {
       // Send SMS approval notice to client — best-effort, never fails the approval
       try {
         if (loan.clients?.phone_number) {
+          const { data: priced } = await adminClient
+            .from('loans')
+            .select('weekly_installment')
+            .eq('id', loanId)
+            .maybeSingle()
           await sendTemplatedSms(
             loan.clients.phone_number,
             'approval',
-            [loan.clients.full_name, loan.principal, loan.loan_number, loan.weekly_installment],
+            [
+              loan.clients.full_name,
+              loan.principal,
+              loan.loan_number,
+              (priced as { weekly_installment?: number } | null)?.weekly_installment ?? loan.weekly_installment,
+            ],
             { clientId: loan.client_id, loanId: loan.id }
           )
         }

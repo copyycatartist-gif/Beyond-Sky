@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useToast } from '@/components/ui/use-toast'
 import { formatCurrency } from '@/lib/utils'
-import { computeDeductions, computeNetDisbursement, round2 } from '@/lib/loans/calculations'
+import { computeDeductions, computeNetDisbursement, round2, MONTHLY_INTEREST_RATES } from '@/lib/loans/calculations'
 import { CheckCircle2, XCircle, Banknote, Loader2 } from 'lucide-react'
 
 type ActionKind = 'approve' | 'reject' | 'disburse' | null
@@ -26,6 +26,8 @@ export function LoanActions({
     total_repayable: number
     weekly_installment: number
     status: string
+    payment_frequency?: string | null
+    interest_rate?: number | null
     previous_loan_id?: string | null
     total_deductions?: number | null
     security_deposit_amount?: number | null
@@ -47,6 +49,8 @@ export function LoanActions({
   const [rejectionReason, setRejectionReason] = useState('')
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'momo'>('cash')
   const [momoReference, setMomoReference] = useState('')
+  const [approvedRate, setApprovedRate] = useState<number>(Number(loan.interest_rate) || 0.1)
+  const isMonthly = loan.payment_frequency === 'monthly'
 
   const isManagerOrAdmin = userRole === 'manager' || userRole === 'accountant_admin'
   const isBusy = loadingAction !== null
@@ -83,7 +87,11 @@ export function LoanActions({
       const res = await fetch('/api/loans/approve', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ loanId: loan.id, action: 'approve' }),
+        body: JSON.stringify({
+          loanId: loan.id,
+          action: 'approve',
+          interestRate: isMonthly ? approvedRate : undefined,
+        }),
       })
 
       const data = await res.json()
@@ -223,13 +231,31 @@ export function LoanActions({
             <DialogDescription>
               Approve{' '}
               <span className="font-semibold text-gray-900">{formatCurrency(loan.principal)}</span>{' '}
-              with weekly installments of{' '}
+              with {isMonthly ? 'monthly' : 'weekly'} installments of{' '}
               <span className="font-semibold text-gray-900">{formatCurrency(loan.weekly_installment)}</span>{' '}
               — the client is notified by SMS.
             </DialogDescription>
           </DialogHeader>
 
           <div className="py-3 space-y-2 text-sm">
+            {isMonthly && (
+              <div className="space-y-1.5">
+                <Label htmlFor="approvedRate">Approved interest rate</Label>
+                <select
+                  id="approvedRate"
+                  value={approvedRate}
+                  onChange={(e) => setApprovedRate(parseFloat(e.target.value))}
+                  className="w-full h-10 rounded-md border border-gray-300 bg-white px-3 text-sm"
+                >
+                  {MONTHLY_INTEREST_RATES.map((rate) => (
+                    <option key={rate} value={rate}>
+                      {Math.round(rate * 100)}%{rate === Number(loan.interest_rate) ? ' (requested)' : ''}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-[11px] text-gray-500">Change this if the requested rate does not fit the client.</p>
+              </div>
+            )}
             <div className="bg-emerald-50 border border-emerald-200 rounded-md p-3 space-y-1">
               <div className="flex justify-between">
                 <span className="text-gray-600">Gross Principal:</span>

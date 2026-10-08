@@ -17,9 +17,9 @@ export async function POST(request: Request) {
       .eq('id', user.id)
       .single()
 
-    if (profile?.role !== 'accountant_admin') {
+    if (profile?.role !== 'accountant_admin' && profile?.role !== 'manager') {
       return NextResponse.json(
-        { error: 'Forbidden: Only accountant_admin can modify business rule settings' },
+        { error: 'Forbidden: Only a manager or super admin can modify business rule settings' },
         { status: 403 }
       )
     }

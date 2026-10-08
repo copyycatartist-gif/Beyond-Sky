@@ -11,7 +11,7 @@ const SORTABLE = ['created_at', 'principal', 'total_repayable', 'weekly_installm
 
 const LOAN_SELECT = `
   id, loan_number, principal, fee_amount, total_repayable, weekly_installment,
-  term_weeks, status, disbursement_date, created_at, client_id,
+  term_weeks, payment_frequency, status, disbursement_date, created_at, client_id,
   clients (id, account_number, full_name, phone_number, market_location, branch)
 `
 

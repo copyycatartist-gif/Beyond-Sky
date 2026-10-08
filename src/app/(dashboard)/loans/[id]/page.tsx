@@ -231,12 +231,19 @@ export default async function LoanDetailPage({ params }: { params: { id: string 
         <Card className="p-4">
           <p className="text-xs text-gray-500 font-medium">Total Repayable</p>
           <p className="text-xl font-bold text-gray-900 mt-0.5">{formatCurrency(loan.total_repayable)}</p>
-          <p className="text-[11px] text-blue-600 font-medium">{loan.interest_multiplier}x flat rate</p>
+          <p className="text-[11px] text-blue-600 font-medium">
+            {loan.payment_frequency === 'monthly'
+              ? `${Math.round(Number(loan.interest_rate || 0) * 100)}% flat · ${loan.term_months || loan.term_weeks} months`
+              : `${loan.interest_multiplier}x flat · ${loan.term_weeks} weeks`}
+          </p>
         </Card>
 
         <Card className="p-4">
           <p className="text-xs text-gray-500 font-medium">Weekly Installment</p>
-          <p className="text-xl font-bold text-blue-700 mt-0.5">{formatCurrency(loan.weekly_installment)}</p>
+          <p className="text-xl font-bold text-blue-700 mt-0.5">
+            {formatCurrency(loan.weekly_installment)}
+            <span className="text-xs font-medium text-gray-500"> / {loan.payment_frequency === 'monthly' ? 'mo' : 'wk'}</span>
+          </p>
           <p className="text-[11px] text-gray-400">{termWeeks} weekly payments</p>
         </Card>
       </div>

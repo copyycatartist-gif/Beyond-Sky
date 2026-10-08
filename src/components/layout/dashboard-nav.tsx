@@ -45,7 +45,7 @@ const NAV_ITEMS: NavItem[] = [
   },
   {
     href: '/groups',
-    label: 'Solidarity Groups',
+    label: 'Disbursement Groups',
     icon: UsersRound,
     roles: ['loan_officer', 'manager', 'supervisor', 'accountant_admin'],
   },
@@ -95,7 +95,7 @@ const NAV_ITEMS: NavItem[] = [
     href: '/settings',
     label: 'Business Settings',
     icon: Settings,
-    roles: ['accountant_admin'],
+    roles: ['accountant_admin', 'manager'],
   },
   {
     href: '/profile',
