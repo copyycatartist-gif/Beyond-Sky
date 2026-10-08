@@ -2,6 +2,53 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
 
+/** Paper forms use DD/MM/YY. Postgres expects YYYY-MM-DD and rejects 31/01/89 as month 31. */
+function parseImportDate(value: unknown, label: string): string | null {
+  const raw = String(value ?? '').trim()
+  if (!raw) return null
+
+  const isoMatch = raw.match(/^(\d{4})-(\d{2})-(\d{2})/)
+  let year: number
+  let month: number
+  let day: number
+
+  if (isoMatch) {
+    year = Number(isoMatch[1])
+    month = Number(isoMatch[2])
+    day = Number(isoMatch[3])
+  } else {
+    const parts = raw.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2}|\d{4})$/)
+    if (!parts) {
+      throw new Error(`${label} "${raw}" must be DD/MM/YYYY or YYYY-MM-DD`)
+    }
+    day = Number(parts[1])
+    month = Number(parts[2])
+    year = Number(parts[3])
+    if (parts[3].length === 2) {
+      const pivot = new Date().getFullYear() % 100
+      year = year > pivot ? 1900 + year : 2000 + year
+    }
+    if (month > 12 && day <= 12) {
+      const swap = day
+      day = month
+      month = swap
+    }
+  }
+
+  const check = new Date(Date.UTC(year, month - 1, day))
+  if (
+    month < 1 || month > 12 ||
+    check.getUTCFullYear() !== year ||
+    check.getUTCMonth() !== month - 1 ||
+    check.getUTCDate() !== day
+  ) {
+    throw new Error(`${label} "${raw}" is not a real date`)
+  }
+
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${year}-${pad(month)}-${pad(day)}`
+}
+
 export async function POST(request: Request) {
   try {
     const supabase = await createClient()
@@ -119,7 +166,7 @@ async function handleClientsMigration(rows: any[], userId: string, adminClient: 
           national_id: nationalId,
           spouse_or_father_name: spouse,
           age: age > 0 ? age : null,
-          date_of_birth: row.dateOfBirth || row.dob || null,
+          date_of_birth: parseImportDate(row.dateOfBirth || row.dob, 'Date of birth'),
           marital_status: rawMarital,
           residential_address: presentAddress,
           permanent_address: permanentAddress,
@@ -149,7 +196,7 @@ async function handleClientsMigration(rows: any[], userId: string, adminClient: 
 
           status: 'active',
           created_by: userId,
-          date_registered: row.dateRegistered || new Date().toISOString().split('T')[0],
+          date_registered: parseImportDate(row.dateRegistered, 'Date registered') || new Date().toISOString().split('T')[0],
         })
         .select('id, full_name, account_number')
         .single()
