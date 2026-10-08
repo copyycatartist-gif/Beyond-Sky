@@ -55,7 +55,7 @@ const clientSchema = z.object({
   guarantor_occupation: z.string().min(2, 'Required'),
   guarantor_employer: z.string().optional().or(z.literal('')),
   guarantor_residential_address: z.string().min(5, 'Required'),
-  branch: z.string().optional().or(z.literal('')),
+  branch: z.string().trim().min(2, 'Branch is required'),
   area: z.string().optional().or(z.literal('')),
   data_protection_consent: z.literal(true, { errorMap: () => ({ message: 'Consent is required' }) }),
 })
@@ -125,7 +125,10 @@ export function ClientForm() {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem(draftRef.current)
       if (saved) {
-        try { return JSON.parse(saved) } catch {}
+        try {
+          const parsed = JSON.parse(saved)
+          return { ...parsed, branch: parsed.branch || '' }
+        } catch {}
       }
     }
     return {
@@ -230,7 +233,7 @@ export function ClientForm() {
   }, [currentStep, formData.phone_number, formData.national_id, checkDuplicates])
 
   const STEP_FIELDS: Record<number, string[]> = {
-    0: ['full_name', 'phone_number', 'national_id', 'spouse_or_father_name', 'marital_status'],
+    0: ['full_name', 'phone_number', 'national_id', 'spouse_or_father_name', 'marital_status', 'branch'],
     1: ['present_address', 'permanent_address', 'business_type', 'market_location', 'monthly_income'],
     2: ['religion', 'place_of_worship', 'religious_leader_name', 'religious_leader_phone'],
     3: [
@@ -348,7 +351,7 @@ export function ClientForm() {
           full_name: formData.full_name.trim(),
           phone_number: (formData.phone_number as string).replace(/\s/g, ''),
           national_id: formData.national_id.trim(),
-          branch: null,
+          branch: formData.branch?.trim() || null,
           area: formData.area?.trim() || null,
           spouse_or_father_name: formData.spouse_or_father_name?.trim() || null,
           age: formData.age ? parseInt(formData.age as any) : null,
@@ -584,8 +587,13 @@ export function ClientForm() {
               {errors.national_id && <p className="text-xs text-red-500">{errors.national_id}</p>}
             </div>
             <div className="space-y-1.5">
+              <Label htmlFor="branch">Branch *</Label>
+              <Input id="branch" name="branch" value={formData.branch || ''} onChange={handleChange} placeholder="e.g. Zongo" required />
+              {errors.branch && <p className="text-xs text-red-500">{errors.branch}</p>}
+            </div>
+            <div className="space-y-1.5">
               <Label htmlFor="area">Area / Zone</Label>
-              <Input id="area" name="area" value={formData.area} onChange={handleChange} placeholder="e.g. Makola Market Central" />
+              <Input id="area" name="area" value={formData.area} onChange={handleChange} placeholder="e.g. Market area" />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="marital_status">Marital Status *</Label>
@@ -755,6 +763,7 @@ export function ClientForm() {
                 <p><span className="text-gray-400">Phone:</span> <span className="font-mono">{formData.phone_number}</span></p>
                 <p><span className="text-gray-400">ID:</span> <span className="font-mono">{formData.national_id}</span></p>
                 <p><span className="text-gray-400">Marital:</span> {formData.marital_status}</p>
+                <p><span className="text-gray-400">Branch:</span> {formData.branch || '—'}</p>
                 <p><span className="text-gray-400">Area:</span> {formData.area || '—'}</p>
                 <button type="button" onClick={() => setCurrentStep(0)} className="text-blue-600 hover:underline text-[11px]">Edit →</button>
               </div>

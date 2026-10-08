@@ -39,8 +39,8 @@ const MIGRATION_CONFIGS: Record<MigrationType, MigrationTabConfig> = {
     icon: FileSpreadsheet,
     title: '13-Week Group Repayment Ledger Import',
     templateFileName: 'beyond_sky_13week_group_ledger_template.csv',
-    templateHeaders: 'groupName,sn,fullName,phoneNumber,principal,loanAmount,wk1,wk2,wk3,wk4,wk5,wk6,wk7,wk8,wk9,wk10,wk11,wk12,wk13,cumPaid\n',
-    sampleRow: 'GROUP 1,1,AMEGBLAME AMEVI,0244123401,2000.00,2730.00,,,,,,,,,,,,,0.00\nGROUP 1,2,TSIKATA DORIS,0208112402,1000.00,1365.00,,,,,,,,,,,,,0.00\nGROUP 1,3,AMILALO THERESA,0559988403,1500.00,2047.50,,,,,,,,,,,,,0.00\nGROUP 1,4,SANDO SITSOFE,0245667404,1500.00,2047.50,,,,,,,,,,,,,0.00\nGROUP 1,5,AGBANYO VERONICA,0209223405,1500.00,2047.50,,,,,,,,,,,,,0.00\n',
+    templateHeaders: 'groupName,sn,fullName,phoneNumber,principal,loanAmount,wk1,wk2,wk3,wk4,wk5,wk6,wk7,wk8,wk9,wk10,wk11,wk12,wk13,cumPaid,branch\n',
+    sampleRow: 'GROUP 1,1,AMEGBLAME AMEVI,0244123401,2000.00,2730.00,,,,,,,,,,,,,0.00,Zongo\nGROUP 1,2,TSIKATA DORIS,0208112402,1000.00,1365.00,,,,,,,,,,,,,0.00,Zongo\nGROUP 1,3,AMILALO THERESA,0559988403,1500.00,2047.50,,,,,,,,,,,,,0.00,Zongo\nGROUP 1,4,SANDO SITSOFE,0245667404,1500.00,2047.50,,,,,,,,,,,,,0.00,Zongo\nGROUP 1,5,AGBANYO VERONICA,0209223405,1500.00,2047.50,,,,,,,,,,,,,0.00,Zongo\n',
   },
   clients: {
     id: 'clients',
@@ -48,8 +48,8 @@ const MIGRATION_CONFIGS: Record<MigrationType, MigrationTabConfig> = {
     icon: Users,
     title: 'Client KYC Directory Onboarding',
     templateFileName: 'beyond_sky_clients_onboarding_template.csv',
-    templateHeaders: 'area,fullName,phoneNumber,nationalId,spouseOrFatherName,age,dateOfBirth,maritalStatus,presentAddress,permanentAddress,businessAddress,businessType,marketLocation,monthlyIncome,religion,placeOfWorship,pastorOrImamName,pastorOrImamPhone,guarantorName,guarantorGender,guarantorPhone,guarantorOccupation,guarantorEmployer,guarantorResidentialAddress\n',
-    sampleRow: 'Accra Central,Ama Osei Mensah,0244123456,GHA-712345678-1,Kofi Mensah,36,1988-04-12,married,Hse #44 Makola Lane,Keta Volta Region,Stall #12 Market Circle,Cloth Trader,Makola Market,2400,Christianity,Action Chapel Makola,Rev. Emmanuel Addo,0209876543,Kwame Osei Mensah,male,0201239876,Transport Operator,Metro Mass Transit,Hse #44 Makola Lane\n',
+    templateHeaders: 'branch,area,fullName,phoneNumber,nationalId,spouseOrFatherName,age,dateOfBirth,maritalStatus,presentAddress,permanentAddress,businessAddress,businessType,marketLocation,monthlyIncome,religion,placeOfWorship,pastorOrImamName,pastorOrImamPhone,guarantorName,guarantorGender,guarantorPhone,guarantorOccupation,guarantorEmployer,guarantorResidentialAddress\n',
+    sampleRow: 'Zongo,Accra Central,Ama Osei Mensah,0244123456,GHA-712345678-1,Kofi Mensah,36,1988-04-12,married,Hse #44 Market Lane,Keta Volta Region,Stall #12 Market Circle,Cloth Trader,Market Circle,2400,Christianity,Action Chapel,Rev. Emmanuel Addo,0209876543,Kwame Osei Mensah,male,0201239876,Transport Operator,Metro Mass Transit,Hse #44 Market Lane\n',
   },
   transactions: {
     id: 'transactions',

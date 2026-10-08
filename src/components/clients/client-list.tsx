@@ -690,6 +690,18 @@ export function ClientList({
                     <option value="platinum">Platinum</option>
                   </select>
 
+                  <select
+                    value={branch}
+                    onChange={(e) => updateURL({ branch: e.target.value })}
+                    className="h-9 rounded-md border border-gray-300 bg-white px-3 text-sm"
+                    aria-label="Filter by branch"
+                  >
+                    <option value="all">All branches</option>
+                    {branches.map((name) => (
+                      <option key={name} value={name}>{name}</option>
+                    ))}
+                  </select>
+
                   {/* Date range filter */}
                   <div className="flex items-center gap-1.5">
                     <Calendar className="h-3.5 w-3.5 text-gray-400" />
@@ -940,7 +952,7 @@ export function ClientList({
                                   <div className="flex items-center gap-2">
                                     <div>
                                       <p className="font-semibold text-gray-900 text-sm">{client.full_name}</p>
-                                      <p className="text-[11px] text-gray-400">{client.area || '—'}</p>
+                                      <p className="text-[11px] text-gray-400">{[client.branch, client.area].filter(Boolean).join(' · ') || '—'}</p>
                                     </div>
                                     {isWatchlisted && (
                                       <span title="Watchlisted"><ShieldAlert className="h-3.5 w-3.5 text-amber-500 shrink-0" /></span>

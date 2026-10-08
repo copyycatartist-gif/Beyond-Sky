@@ -556,7 +556,7 @@ export default async function GroupDetailPage({ params }: { params: { id: string
               groupNumber={g.group_number}
               meetingDay=""
               meetingPlace=""
-              branch={g.branch || 'Makola Branch'}
+              branch={g.branch || ''}
               area={g.area || 'Accra Central'}
               memberSchedules={memberSchedules.filter((row) => row.paymentFrequency !== 'monthly')}
               periodCount={13}
@@ -570,7 +570,7 @@ export default async function GroupDetailPage({ params }: { params: { id: string
               groupNumber={g.group_number}
               meetingDay=""
               meetingPlace=""
-              branch={g.branch || 'Makola Branch'}
+              branch={g.branch || ''}
               area={g.area || 'Accra Central'}
               memberSchedules={memberSchedules.filter((row) => row.paymentFrequency === 'monthly')}
               periodCount={Math.max(1, ...memberSchedules.filter((row) => row.paymentFrequency === 'monthly').map((row) => row.installments.length))}

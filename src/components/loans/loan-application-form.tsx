@@ -505,7 +505,7 @@ export function LoanApplicationForm({
                   <div>
                     <span className="text-gray-500">Branch / Area:</span>
                     <p className="font-semibold text-gray-800">
-                      {selectedClient.branch || 'Makola Branch'} • {selectedClient.area || 'Central Area'}
+                      {[selectedClient.branch, selectedClient.area].filter(Boolean).join(' · ') || '—'}
                     </p>
                   </div>
                   <div>

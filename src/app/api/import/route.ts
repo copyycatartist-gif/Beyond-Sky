@@ -160,6 +160,8 @@ async function handleClientsMigration(rows: any[], userId: string, adminClient: 
       const phone = requireGhanaPhone(String(row.phoneNumber || row.phone_number || ''), 'Phone number')
       const nationalId = requireGhanaCard(String(row.nationalId || row.national_id || ''))
       const area = String(row.area || '').trim()
+      const branch = String(row.branch || '').trim()
+      if (!branch) throw new Error('Branch is required')
       const spouse = String(row.spouseOrFatherName || row.spouse_or_father_name || '').trim()
       if (!spouse) throw new Error('Missing husband / wife / father name')
       const presentAddress = String(row.presentAddress || row.residentialAddress || row.residential_address || '').trim()
@@ -207,7 +209,7 @@ async function handleClientsMigration(rows: any[], userId: string, adminClient: 
       const { data: newClient, error: clientErr } = await adminClient
         .from('clients')
         .insert({
-          branch: null,
+          branch,
           area: area || null,
           full_name: name,
           phone_number: phone,
@@ -607,7 +609,7 @@ async function handleLegacyCompositeMigration(rows: any[], userId: string, admin
           phone_number: String(row.phoneNumber).trim(),
           national_id: String(row.nationalId).trim(),
           business_type: String(row.businessType || 'General Trader').trim(),
-          market_location: String(row.marketLocation || 'Makola Market').trim(),
+          market_location: String(row.marketLocation || '').trim() || null,
           daily_business_income: null,
           guarantor_name: String(row.guarantorName || 'Family Guarantor').trim(),
           guarantor_phone: String(row.guarantorPhone || row.phoneNumber).trim(),
@@ -780,8 +782,8 @@ async function handleGroup13WeekLedgerMigration(rows: any[], userId: string, adm
             .from('groups')
             .insert({
               name: groupName,
-              branch: 'Makola Branch',
-              area: 'Accra Central',
+              branch: String(row.branch || '').trim() || null,
+              area: null,
               max_members: 500,
               status: 'active',
               group_type: 'disbursement',
@@ -810,10 +812,10 @@ async function handleGroup13WeekLedgerMigration(rows: any[], userId: string, adm
             full_name: fullName,
             phone_number: phone,
             national_id: nationalId,
-            branch: 'Makola Branch',
-            area: 'Accra Central',
+            branch: String(row.branch || '').trim() || null,
+            area: null,
             business_type: 'Market Trader',
-            market_location: 'Makola Market',
+            market_location: String(row.marketLocation || row.market || '').trim() || null,
             daily_business_income: null,
             monthly_income: null,
             marital_status: 'married',

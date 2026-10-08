@@ -112,7 +112,7 @@ export function PrintableLoanContract({ loan, client, settings }: LoanContractPr
   const processingFee = num(loan.processing_fee_amount, num(loan.total_deductions, 0))
   const processingFeePct = principal > 0 ? round2((processingFee / principal) * 100) : 0
   const cashToClient = num(loan.net_disbursement_amount, round2(principal - processingFee))
-  const branch = txt(client.branch || settings['default_branch'] || null)
+  const branch = txt(client.branch)
 
   // ---- Rates / terms ----
   const monthlyRate = loan.monthly_interest_rate != null && loan.monthly_interest_rate !== ''
@@ -267,6 +267,16 @@ export function PrintableLoanContract({ loan, client, settings }: LoanContractPr
               <h3 className="font-bold text-center uppercase tracking-wider text-xs border-b border-black pb-1 mb-2 font-sans bg-gray-100 print:bg-transparent">
                 Applicant's Personal Information
               </h3>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <span className="font-sans font-bold text-xs">Branch:</span>{' '}
+                  <span className="border-b border-dotted border-black inline-block min-w-[160px]">{txt(client.branch)}</span>
+                </div>
+                <div>
+                  <span className="font-sans font-bold text-xs">Area:</span>{' '}
+                  <span className="border-b border-dotted border-black inline-block min-w-[160px]">{txt(client.area)}</span>
+                </div>
+              </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <span className="font-sans font-bold text-xs">Name:</span>{' '}

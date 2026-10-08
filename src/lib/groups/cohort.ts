@@ -68,9 +68,21 @@ export async function assignDisbursementGroup(
     input.frequency
   )
 
+  const { data: clientRow, error: clientLookupError } = await admin
+    .from('clients')
+    .select('branch')
+    .eq('id', input.clientId)
+    .maybeSingle()
+
+  if (clientLookupError) {
+    throw new Error(clientLookupError.message || 'Could not read the client branch')
+  }
+
+  const clientBranch = String((clientRow as { branch?: string | null } | null)?.branch || '').trim() || null
+
   const { data: existing, error: lookupError } = await admin
     .from('groups')
-    .select('id')
+    .select('id, branch')
     .eq('cohort_key', cohort.key)
     .maybeSingle()
 
@@ -78,7 +90,18 @@ export async function assignDisbursementGroup(
     throw new Error(lookupError.message || 'Could not look up the disbursement group')
   }
 
-  let groupId = (existing as { id: string } | null)?.id
+  const existingGroup = existing as { id: string; branch: string | null } | null
+  let groupId = existingGroup?.id
+
+  if (groupId && clientBranch && !String(existingGroup?.branch || '').trim()) {
+    const { error: branchError } = await admin
+      .from('groups')
+      .update({ branch: clientBranch } as never)
+      .eq('id', groupId)
+    if (branchError) {
+      throw new Error(branchError.message || 'Could not record the branch on the disbursement group')
+    }
+  }
 
   if (!groupId) {
     const { data: created, error } = await admin
@@ -90,6 +113,7 @@ export async function assignDisbursementGroup(
         max_members: 500,
         cohort_key: cohort.key,
         area: 'Disbursement cohort',
+        branch: clientBranch,
         created_by: input.actorId,
       } as never)
       .select('id')

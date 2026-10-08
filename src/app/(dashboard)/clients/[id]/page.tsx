@@ -199,7 +199,10 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
               )}
             </div>
             <p className="text-sm font-mono text-blue-600 font-bold mt-0.5">
-              Account No: {client.account_number} • {client.branch || 'Makola Branch'} ({client.area || 'Central Area'})
+              Account No: {client.account_number}
+              {[client.branch, client.area].filter(Boolean).length > 0
+                ? ` • ${[client.branch, client.area].filter(Boolean).join(' · ')}`
+                : ''}
             </p>
           </div>
         </div>
@@ -333,6 +336,16 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
               <div>
                 <p className="text-gray-400">Ghana Card / National ID</p>
                 <p className="font-semibold text-gray-900 font-mono mt-0.5">{client.national_id}</p>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <p className="text-gray-400">Branch</p>
+                  <p className="font-medium text-gray-800 mt-0.5">{client.branch || 'Not recorded'}</p>
+                </div>
+                <div>
+                  <p className="text-gray-400">Area / Zone</p>
+                  <p className="font-medium text-gray-800 mt-0.5">{client.area || '—'}</p>
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>

@@ -147,13 +147,13 @@ export function LoanList({ rows, pagination, filters, kpis, statusCounts, error 
       return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
     }
     const header = [
-      'Loan #', 'Client', 'Account #', 'Phone', 'Market', 'Principal', 'Outstanding Balance',
+      'Loan #', 'Client', 'Account #', 'Phone', 'Branch', 'Market', 'Principal', 'Outstanding Balance',
       'Total Repayable', 'Weekly Installment', 'Term (wks)', 'Next Due', 'Days Overdue', 'Status', 'Submitted',
     ]
     const lines = rows.map((r) =>
       [
         r.loan_number, r.clients?.full_name, r.clients?.account_number, r.clients?.phone_number,
-        r.clients?.market_location, r.principal, r.outstanding_balance ?? '', r.total_repayable,
+        r.clients?.branch, r.clients?.market_location, r.principal, r.outstanding_balance ?? '', r.total_repayable,
         r.weekly_installment, r.term_weeks, r.next_due_date ?? '', r.days_overdue, r.status,
         r.created_at?.slice(0, 10),
       ]
@@ -424,6 +424,9 @@ export function LoanList({ rows, pagination, filters, kpis, statusCounts, error 
                         {loan.clients?.account_number}
                         {loan.clients?.phone_number ? ` • ${loan.clients.phone_number}` : ''}
                       </div>
+                      {loan.clients?.branch ? (
+                        <div className="text-[11px] text-gray-400">{loan.clients.branch}</div>
+                      ) : null}
                     </TableCell>
                     <TableCell className="text-right font-medium text-xs text-gray-900 whitespace-nowrap">
                       {formatCurrency(loan.principal)}

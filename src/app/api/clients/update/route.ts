@@ -55,6 +55,14 @@ export async function PATCH(request: NextRequest) {
     }
   }
 
+  if ('branch' in filteredUpdates) {
+    const branch = String(filteredUpdates.branch || '').trim()
+    if (!branch) {
+      return NextResponse.json({ error: 'Branch is required' }, { status: 400 })
+    }
+    filteredUpdates.branch = branch
+  }
+
   if ('monthly_income' in filteredUpdates) {
     const income = Number(filteredUpdates.monthly_income)
     if (!Number.isFinite(income) || income <= 0) {

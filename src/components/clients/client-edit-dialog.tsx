@@ -95,6 +95,11 @@ export function ClientEditDialog({ client, userRole }: { client: ClientData; use
 
   const handleSave = async () => {
     setSaving(true)
+    if (!form.branch.trim()) {
+      toast({ title: 'Branch is required', description: 'Enter the branch in personal information before saving.', variant: 'destructive' })
+      setSaving(false)
+      return
+    }
     const income = Number(form.monthly_income)
     if (!Number.isFinite(income) || income <= 0) {
       toast({ title: 'Monthly income is required', description: 'Enter the client’s monthly income before saving.', variant: 'destructive' })
@@ -179,6 +184,10 @@ export function ClientEditDialog({ client, userRole }: { client: ClientData; use
               <div className="space-y-1">
                 <Label htmlFor="edit-age">Age</Label>
                 <Input id="edit-age" name="age" type="number" value={form.age} onChange={handleChange} />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="edit-branch">Branch *</Label>
+                <Input id="edit-branch" name="branch" value={form.branch} onChange={handleChange} placeholder="e.g. Zongo" required />
               </div>
               <div className="space-y-1">
                 <Label htmlFor="edit-area">Area / Zone</Label>
